@@ -1,0 +1,51 @@
+import { UKomiApiException, UKomiException } from '../errors/UKomiException';
+/**
+ * Order API client for retrieving order information.
+ * Provides methods to access order data and associated customer information.
+ */
+export class OrderAPI {
+    constructor(http, apiKey, accessToken) {
+        this.http = http;
+        this.apiKey = apiKey;
+        this.accessToken = accessToken;
+    }
+    /**
+     * Retrieves orders with optional filtering and pagination.
+     *
+     * @param params - Optional query parameters for filtering
+     * @param params.from_id - Filter orders from this order ID
+     * @param params.from_date - Filter orders from this date (YYYY-MM-DD format)
+     * @param params.count - Number of orders per page
+     * @param params.page - Page number
+     * @param params.retrieve_reviews - Whether to include associated reviews ('1' or '0')
+     * @param params.order_id - Filter by specific order ID
+     * @returns Promise resolving to an array of orders
+     * @throws {UKomiApiException} When the API returns an error
+     * @throws {UKomiException} When a network error occurs
+     *
+     * @example
+     * ```typescript
+     * const orders = await sdk.orderAPI().getOrders({
+     *   count: '10',
+     *   page: '1',
+     *   from_date: '2024-01-01'
+     * });
+     * ```
+     */
+    async getOrders(params) {
+        try {
+            const body = {
+                access_token: this.accessToken,
+                orders: params,
+            };
+            const response = await this.http.post(`orders/${this.apiKey}/`, body);
+            return response.orders || [];
+        }
+        catch (error) {
+            if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+        }
+    }
+}
