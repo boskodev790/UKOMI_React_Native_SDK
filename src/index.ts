@@ -34,4 +34,5 @@ export * from './types/QuestionModels';
 export { ApiConfig } from './config/ApiConfig';
 
 export { StarRating, StarRatingProps } from './components/StarRating';
+export { ProductReviewList, ProductReviewListProps } from './components/ProductReviewList';
 
