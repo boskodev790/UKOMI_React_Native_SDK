@@ -404,16 +404,16 @@ export class ReviewAPI {
   async getProductReviews(
     productId: string,
     params?: {
-      count?: string;
-      page?: string;
+      count?: number;
+      page?: number;
       sort?: string;
       sortOrder?: string;
-      stars?: string;
+      stars?: number;
       starsSorting?: string;
     }
   ): Promise<ReviewResponse> {
     try {
-      const queryParams: Record<string, string> = {};
+      const queryParams: Record<string, number | string> = {};
       if (params) {
         if (params.count) queryParams.count = params.count;
         if (params.page) queryParams.page = params.page;

@@ -54,6 +54,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   const [reviewCount, setReviewCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const MAX_REVIEWS = 100000;
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -75,7 +76,8 @@ export const StarRating: React.FC<StarRatingProps> = ({
 
         // Fetch reviews for the product
         const response = await sdk.reviews().getProductReviews(productId, {
-          count: '1000', // Get all reviews to calculate accurate average
+          count: MAX_REVIEWS,
+          page: 1,
         });
 
         const reviews = response.review || [];
