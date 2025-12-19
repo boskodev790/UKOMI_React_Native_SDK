@@ -35,6 +35,7 @@
     "react-native-svg": ">=15.15.1"
   },
   "files": [
+    "src",
     "dist",
     "README.md",
     "package.json"

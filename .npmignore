@@ -1,13 +1,12 @@
-src/
-*.ts
-!*.d.ts
-tsconfig.json
-.gitignore
-.DS_Store
+dist/
 *.log
+.DS_Store
 node_modules/
 .idea/
 .vscode/
 *.swp
 *.swo
+.gitignore
+tsconfig.json
+*.tsbuildinfo
 
