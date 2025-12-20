@@ -20,17 +20,13 @@ export interface ProductReviewListProps {
   sdk: UKomiSDK;
   /** The product ID to fetch reviews for */
   productId: string;
-  /** Number of reviews per page (default: 10) */
+  /** Number of reviews per page (default: 10). Pagination is built-in and automatically displayed when there are multiple pages. */
   reviewsPerPage?: number;
   /** Optional: Custom style for the container */
   containerStyle?: ViewStyle;
-  /** Optional: Custom title text (default: Japanese) */
-  title?: string;
-  /** Optional: Show tabs for Reviews/Q&A (default: false) */
-  showTabs?: boolean;
   /** Optional: Callback when a review is marked as helpful */
   onHelpfulPress?: (reviewId: string) => void;
-  /** Optional: Custom colors for theming */
+  /** Optional: Custom colors for theming. Defaults to dark theme if not provided. */
   colors?: {
     background?: string;
     text?: string;
@@ -50,7 +46,20 @@ type SortOrder = 'asc' | 'desc';
 /**
  * ProductReviewList Component
  * 
- * Displays a list of product reviews with sorting, filtering, and pagination.
+ * Displays a list of product reviews with sorting, filtering, and built-in pagination.
+ * This is a focused component for displaying reviews only - no header or tabs included.
+ * 
+ * The component includes:
+ * - Automatic pagination with page numbers, previous/next buttons, and page indicators
+ * - Sorting options (by date, rating, helpful, verified, media)
+ * - Filter controls
+ * - Dark theme by default (customizable via colors prop)
+ * - Review display with star ratings, verified badges, and helpful counts
+ * 
+ * Pagination is automatically enabled when there are multiple pages of reviews.
+ * No additional pagination props are required - it's built into the component.
+ * 
+ * Note: For tabs (Reviews/Q&A) and headers, implement them at the app level.
  * 
  * @example
  * ```tsx
@@ -62,26 +71,41 @@ type SortOrder = 'asc' | 'desc';
  *   reviewsPerPage={10}
  * />
  * ```
+ * 
+ * @example
+ * With custom colors (light theme):
+ * ```tsx
+ * <ProductReviewList 
+ *   sdk={ukomiSDK} 
+ *   productId="product-123"
+ *   colors={{
+ *     background: '#FFFFFF',
+ *     text: '#000000',
+ *     textSecondary: '#666666',
+ *     primary: '#3b82f6',
+ *     border: '#e5e5e5',
+ *     surface: '#f5f5f5',
+ *   }}
+ * />
+ * ```
  */
 export const ProductReviewList: React.FC<ProductReviewListProps> = ({
   sdk,
   productId,
   reviewsPerPage = 10,
   containerStyle,
-  title = 'お客様レビュー（口コミ、評価）',
-  showTabs = false,
   onHelpfulPress,
   colors: customColors,
   showLoading = true,
 }) => {
-  // Default colors (can be overridden)
+  // Default colors (can be overridden) - Dark theme by default
   const colors = {
-    background: customColors?.background || '#FFFFFF',
-    text: customColors?.text || '#000000',
-    textSecondary: customColors?.textSecondary || '#666666',
+    background: customColors?.background || '#000000',
+    text: customColors?.text || '#FFFFFF',
+    textSecondary: customColors?.textSecondary || '#CCCCCC',
     primary: customColors?.primary || '#3b82f6',
-    border: customColors?.border || '#e5e5e5',
-    surface: customColors?.surface || '#f5f5f5',
+    border: customColors?.border || '#333333',
+    surface: customColors?.surface || '#1a1a1a',
     error: customColors?.error || '#ef4444',
   };
 
@@ -90,6 +114,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [hasMorePages, setHasMorePages] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'reviews' | 'qa'>('reviews');
   const [activeSort, setActiveSort] = useState<SortOption>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -118,7 +143,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
 
       // Map sort option to API sort field
       const sortField = sort === 'date' ? 'date' : sort === 'rating' ? 'score' : 'date';
-      
+
       const response = await sdk.reviews().getProductReviews(productId, {
         count: reviewsPerPage,
         page: page,
@@ -127,7 +152,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
       });
 
       const fetchedReviews = response.review || [];
-      
+
       // Apply client-side filtering for verified/media if needed
       let filteredReviews = fetchedReviews;
       if (sort === 'verified') {
@@ -137,7 +162,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
       }
 
       setReviews(filteredReviews);
-      
+
       // Estimate total pages (API doesn't return total, so we'll use a heuristic)
       // If we get fewer reviews than requested, we're on the last page
       if (filteredReviews.length < reviewsPerPage) {
@@ -164,7 +189,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
   const renderStar = (isFilled: boolean, key: number, size: number = 16) => {
     const fillColor = isFilled ? '#f5c518' : 'transparent';
     const strokeColor = isFilled ? '#f5c518' : '#e0e0e0';
-    
+
     return (
       <Svg
         key={key}
@@ -219,7 +244,46 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
       setActiveSort(sort);
       setSortOrder('desc'); // Default to descending
       setCurrentPage(1); // Reset to first page
+      setTotalPages(1); // Reset total pages
+      setHasMorePages(true); // Reset has more pages
     }
+  };
+
+  // Generate page numbers to display (show up to 5 page numbers)
+  const getPageNumbers = (): number[] => {
+    const maxVisiblePages = 5;
+    const pages: number[] = [];
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show smart pagination with ellipsis
+      if (currentPage <= 3) {
+        // Show first 4 pages + last page
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Show first page + last 4 pages
+        pages.push(1);
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // Show first page + current-1, current, current+1 + last page
+        pages.push(1);
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
   };
 
   // Handle helpful button press
@@ -249,50 +313,6 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }, containerStyle]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerContent}>
-          <Svg width={20} height={20} viewBox="0 0 24 24">
-            <Path
-              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-              fill={colors.text}
-            />
-          </Svg>
-          <Text style={[styles.headerText, { color: colors.text }]}>{title}</Text>
-        </View>
-      </View>
-
-      {/* Tabs */}
-      {showTabs && (
-        <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'reviews' && [styles.activeTab, { borderBottomColor: colors.primary }]]}
-            onPress={() => setActiveTab('reviews')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === 'reviews' ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              レビュー
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'qa' && [styles.activeTab, { borderBottomColor: colors.primary }]]}
-            onPress={() => setActiveTab('qa')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === 'qa' ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              Q&A
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Filters and Sort */}
       <View style={styles.filtersContainer}>
@@ -443,8 +463,9 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
           </View>
 
           {/* Pagination */}
-          {totalPages > 1 && (
+          {reviews.length > 0 && (hasMorePages || currentPage > 1) && (
             <View style={styles.pagination}>
+              {/* Previous Button */}
               <TouchableOpacity
                 style={[
                   styles.paginationButton,
@@ -466,25 +487,75 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
                 </Text>
               </TouchableOpacity>
 
-              <Text style={[styles.paginationInfo, { color: colors.text }]}>
-                {currentPage} / {totalPages} ページ
-              </Text>
+              {/* Page Numbers */}
+              <View style={styles.pageNumbersContainer}>
+                {getPageNumbers().map((pageNum, index, array) => {
+                  const showEllipsisBefore = index > 0 && pageNum - array[index - 1] > 1;
+                  const isActive = pageNum === currentPage;
 
+                  return (
+                    <React.Fragment key={pageNum}>
+                      {showEllipsisBefore && (
+                        <Text style={[styles.paginationEllipsis, { color: colors.textSecondary }]}>
+                          ...
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={[
+                          styles.pageNumberButton,
+                          {
+                            backgroundColor: isActive ? colors.primary : 'transparent',
+                            borderColor: colors.border,
+                          },
+                        ]}
+                        onPress={() => setCurrentPage(pageNum)}
+                      >
+                        <Text
+                          style={[
+                            styles.pageNumberText,
+                            {
+                              color: isActive ? '#FFFFFF' : colors.text,
+                              fontWeight: isActive ? '600' : '400',
+                            },
+                          ]}
+                        >
+                          {pageNum}
+                        </Text>
+                      </TouchableOpacity>
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+
+              {/* Page Info */}
+              {totalPages > 1 && (
+                <Text style={[styles.paginationInfo, { color: colors.textSecondary }]}>
+                  {currentPage} / {hasMorePages && currentPage === totalPages ? '...' : totalPages}
+                </Text>
+              )}
+
+              {/* Next Button */}
               <TouchableOpacity
                 style={[
                   styles.paginationButton,
                   {
-                    backgroundColor: currentPage === totalPages ? colors.surface : colors.primary,
-                    opacity: currentPage === totalPages ? 0.5 : 1,
+                    backgroundColor: !hasMorePages && currentPage === totalPages ? colors.surface : colors.primary,
+                    opacity: !hasMorePages && currentPage === totalPages ? 0.5 : 1,
                   },
                 ]}
-                onPress={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+                onPress={() => {
+                  if (hasMorePages || currentPage < totalPages) {
+                    setCurrentPage(prev => prev + 1);
+                  }
+                }}
+                disabled={!hasMorePages && currentPage === totalPages}
               >
                 <Text
                   style={[
                     styles.paginationButtonText,
-                    { color: currentPage === totalPages ? colors.textSecondary : '#FFFFFF' },
+                    {
+                      color: !hasMorePages && currentPage === totalPages ? colors.textSecondary : '#FFFFFF',
+                    },
                   ]}
                 >
                   次へ
@@ -567,6 +638,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
+    minHeight: 36,
+    justifyContent: 'center',
   },
   sortButtonText: {
     fontSize: 14,
@@ -599,7 +672,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   reviewItem: {
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
   },
   reviewHeader: {
@@ -643,37 +716,71 @@ const styles = StyleSheet.create({
   },
   reviewContent: {
     fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
+    lineHeight: 22,
+    marginBottom: 12,
+    marginTop: 4,
   },
   helpfulButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   helpfulText: {
-    fontSize: 12,
+    fontSize: 13,
   },
   pagination: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 12,
     marginTop: 24,
-    paddingTop: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   paginationButton: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
+    minWidth: 70,
+    alignItems: 'center',
   },
   paginationButtonText: {
     fontSize: 14,
     fontWeight: '500',
   },
-  paginationInfo: {
+  pageNumbersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  pageNumberButton: {
+    minWidth: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  pageNumberText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
+  },
+  paginationEllipsis: {
+    fontSize: 14,
+    paddingHorizontal: 4,
+  },
+  paginationInfo: {
+    fontSize: 13,
+    fontWeight: '400',
+    minWidth: 60,
+    textAlign: 'center',
   },
 });
