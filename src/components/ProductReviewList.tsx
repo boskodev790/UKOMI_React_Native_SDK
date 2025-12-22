@@ -316,7 +316,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
 
       {/* Filters and Sort */}
       <View style={styles.filtersContainer}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.filterButton, { backgroundColor: colors.primary }]}
           onPress={() => {
             // TODO: Implement advanced filter modal
@@ -332,7 +332,7 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
           <Svg width={16} height={16} viewBox="0 0 24 24">
             <Path d="M7 10l5 5 5-5z" fill="#FFFFFF" />
           </Svg>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <ScrollView
           horizontal
