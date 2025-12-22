@@ -13,7 +13,7 @@ export interface Questioner {
  */
 export interface Answerer {
   name?: string;
-  avtar?: string;
+  avatar?: string;
   time?: string;
 }
 
