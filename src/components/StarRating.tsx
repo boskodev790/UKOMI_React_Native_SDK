@@ -182,7 +182,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   return (
     <View style={[styles.container, containerStyle]}>
       <Text style={styles.starRatingText}>
-        {averageRating}
+        {averageRating.toFixed(2)}
       </Text>
       {renderStars()}
       {reviewCount > 0 && (
