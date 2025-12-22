@@ -572,7 +572,8 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    padding: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   header: {
     paddingBottom: 12,
@@ -611,6 +612,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 16,
     gap: 12,
   },
   filterButton: {
@@ -646,7 +648,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   loadingContainer: {
-    padding: 32,
+    paddingVertical: 32,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -655,14 +658,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   errorContainer: {
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
   errorText: {
     fontSize: 14,
   },
   emptyContainer: {
-    padding: 32,
+    paddingVertical: 32,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
   emptyText: {
@@ -670,6 +675,7 @@ const styles = StyleSheet.create({
   },
   reviewsList: {
     width: '100%',
+    paddingHorizontal: 16,
   },
   reviewItem: {
     paddingVertical: 20,
@@ -739,6 +745,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingTop: 20,
     paddingBottom: 8,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
