@@ -100,7 +100,8 @@ export class QuestionAPI {
   async getProductQuestions(productId: string): Promise<Question[]> {
     try {
       const response = await this.http.get<ProductQuestionsResponse>(
-        `questions/${this.apiKey}/${productId}`
+        `questions/${this.apiKey}/${productId}`,
+        { params: { access_token: this.accessToken } }
       );
 
       if (!response.questions?.questions) {
