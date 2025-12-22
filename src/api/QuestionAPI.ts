@@ -143,5 +143,66 @@ export class QuestionAPI {
       throw new UKomiException('Network error', error instanceof Error ? error : undefined);
     }
   }
+
+  /**
+   * Submits a question for a product.
+   * 
+   * @param productId - The product ID to submit question for
+   * @param questionData - Question submission data
+   * @param questionData.question - The question text (required)
+   * @param questionData.email - Questioner email (required)
+   * @param questionData.name - Questioner name (optional)
+   * @param questionData.nickname - Questioner nickname (optional)
+   * @returns Promise resolving to the created question
+   * @throws {UKomiApiException} When the API returns an error
+   * @throws {UKomiException} When a network error occurs
+   * 
+   * @example
+   * ```typescript
+   * const question = await sdk.questions().submitQuestion('product-123', {
+   *   question: 'Is this product suitable for outdoor use?',
+   *   email: 'user@example.com',
+   *   name: 'John Doe',
+   *   nickname: 'Johnny'
+   * });
+   * ```
+   */
+  async submitQuestion(
+    productId: string,
+    questionData: {
+      question: string;
+      email: string;
+      name?: string;
+      nickname?: string;
+    }
+  ): Promise<Question> {
+    try {
+      const body: Record<string, any> = {
+        access_token: this.accessToken,
+        product_id: productId,
+        question: questionData.question,
+        email: questionData.email,
+      };
+
+      if (questionData.name) {
+        body.name = questionData.name;
+      }
+      if (questionData.nickname) {
+        body.nickname = questionData.nickname;
+      }
+
+      const response = await this.http.post<Question>(
+        `questions/${this.apiKey}/post`,
+        body
+      );
+
+      return response;
+    } catch (error) {
+      if (error instanceof UKomiApiException) {
+        throw error;
+      }
+      throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+    }
+  }
 }
 

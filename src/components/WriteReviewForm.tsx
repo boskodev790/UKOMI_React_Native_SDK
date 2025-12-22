@@ -5,13 +5,12 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Modal,
-  ScrollView,
   ViewStyle,
   ActivityIndicator,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { UKomiSDK } from '../UKomiSDK';
+import { UKomiApiException, UKomiException } from '../errors/UKomiException';
 
 /**
  * Custom question configuration
@@ -33,10 +32,8 @@ export interface WriteReviewFormProps {
   sdk: UKomiSDK;
   /** The product ID to submit review for */
   productId: string;
-  /** Whether the form modal is visible */
-  visible: boolean;
-  /** Callback when form should be closed */
-  onClose: () => void;
+  /** Callback when form should be closed (e.g., after successful submission) */
+  onClose?: () => void;
   /** Optional: Callback when review is successfully submitted */
   onSubmitSuccess?: () => void;
   /** Optional: Custom questions to display in the form */
@@ -60,21 +57,22 @@ const starPath = 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63
  * WriteReviewForm Component
  * 
  * Displays a form for writing a product review with custom questions support.
+ * This is a pure form component that can be used in modals, pages, or any container.
  * 
  * @example
  * ```tsx
- * <WriteReviewForm 
- *   sdk={ukomiSDK} 
- *   productId="product-123"
- *   visible={showReviewForm}
- *   onClose={() => setShowReviewForm(false)}
- * />
+ * <Modal visible={showReviewForm}>
+ *   <WriteReviewForm 
+ *     sdk={ukomiSDK} 
+ *     productId="product-123"
+ *     onClose={() => setShowReviewForm(false)}
+ *   />
+ * </Modal>
  * ```
  */
 export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   sdk,
   productId,
-  visible,
   onClose,
   onSubmitSuccess,
   customQuestions = [],
@@ -364,11 +362,15 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
     setLoading(true);
 
     try {
-      // TODO: Implement API call to submit review
-      // Example: await sdk.reviews().submitReview(productId, { rating, subject, content, name, email, nickname, customAnswers });
-      
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await sdk.reviews().submitReview(productId, {
+        rating,
+        subject,
+        content,
+        email,
+        name: name || undefined,
+        nickname: nickname || undefined,
+        customAnswers: Object.keys(customAnswers).length > 0 ? customAnswers : undefined,
+      });
       
       // Reset form
       setRating(0);
@@ -382,218 +384,169 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       if (onSubmitSuccess) {
         onSubmitSuccess();
       }
-      onClose();
+      if (onClose) {
+        onClose();
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'レビューの投稿に失敗しました');
+      let errorMessage = 'レビューの投稿に失敗しました';
+      if (err instanceof UKomiApiException) {
+        errorMessage = err.message || errorMessage;
+      } else if (err instanceof UKomiException) {
+        errorMessage = err.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setRating(0);
-    setSubject('');
-    setContent('');
-    setName('');
-    setEmail('');
-    setNickname('');
-    setCustomAnswers({});
-    setError(null);
-    onClose();
-  };
-
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={handleClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>レビューを投稿</Text>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                <Path d="M18 6L6 18M6 6l12 12" stroke={colors.text} strokeWidth="2" strokeLinecap="round" />
-              </Svg>
-            </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Rating Field */}
+      <View style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>評価</Text>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.requiredText}>必須</Text>
           </View>
-
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {/* Rating Field */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { color: colors.text }]}>評価</Text>
-                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.requiredText}>必須</Text>
-                </View>
-              </View>
-              {renderStarInput()}
-            </View>
-
-            {/* Subject Field */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { color: colors.text }]}>件名</Text>
-                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.requiredText}>必須</Text>
-                </View>
-              </View>
-              <TextInput
-                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
-                value={subject}
-                onChangeText={setSubject}
-                placeholder="件名を入力してください"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Content Field */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { color: colors.text }]}>本文</Text>
-                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.requiredText}>必須</Text>
-                </View>
-              </View>
-              <TextInput
-                style={[styles.textArea, { borderColor: colors.border, color: colors.text }]}
-                value={content}
-                onChangeText={setContent}
-                placeholder="レビュー本文を入力してください"
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                numberOfLines={8}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Name Field */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { color: colors.text }]}>お名前</Text>
-                <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
-                </View>
-              </View>
-              <TextInput
-                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
-                value={name}
-                onChangeText={setName}
-                placeholder="お名前を入力してください"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Email Field */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { color: colors.text }]}>メールアドレス</Text>
-                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.requiredText}>必須</Text>
-                </View>
-              </View>
-              <TextInput
-                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="メールアドレスを入力してください"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            {/* Nickname Field */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, { color: colors.text }]}>ニックネーム</Text>
-                <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
-                </View>
-              </View>
-              <TextInput
-                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
-                value={nickname}
-                onChangeText={setNickname}
-                placeholder="ニックネームを入力してください"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Custom Questions */}
-            {customQuestions.map((question) => {
-              switch (question.type) {
-                case 'scale':
-                  return renderScaleQuestion(question);
-                case 'radio':
-                  return renderRadioQuestion(question);
-                case 'checkbox':
-                  return renderCheckboxQuestion(question);
-                case 'freetext':
-                  return renderFreeTextQuestion(question);
-                default:
-                  return null;
-              }
-            })}
-
-            {/* Error Message */}
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-              </View>
-            )}
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: colors.primary }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.submitButtonText}>投稿する</Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
         </View>
+        {renderStarInput()}
       </View>
-    </Modal>
+
+      {/* Subject Field */}
+      <View style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>件名</Text>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.requiredText}>必須</Text>
+          </View>
+        </View>
+        <TextInput
+          style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+          value={subject}
+          onChangeText={setSubject}
+          placeholder="件名を入力してください"
+          placeholderTextColor={colors.textSecondary}
+        />
+      </View>
+
+      {/* Content Field */}
+      <View style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>本文</Text>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.requiredText}>必須</Text>
+          </View>
+        </View>
+        <TextInput
+          style={[styles.textArea, { borderColor: colors.border, color: colors.text }]}
+          value={content}
+          onChangeText={setContent}
+          placeholder="レビュー本文を入力してください"
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={8}
+          textAlignVertical="top"
+        />
+      </View>
+
+      {/* Name Field */}
+      <View style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>お名前</Text>
+          <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+          </View>
+        </View>
+        <TextInput
+          style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+          value={name}
+          onChangeText={setName}
+          placeholder="お名前を入力してください"
+          placeholderTextColor={colors.textSecondary}
+        />
+      </View>
+
+      {/* Email Field */}
+      <View style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>メールアドレス</Text>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.requiredText}>必須</Text>
+          </View>
+        </View>
+        <TextInput
+          style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="メールアドレスを入力してください"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      </View>
+
+      {/* Nickname Field */}
+      <View style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>ニックネーム</Text>
+          <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+          </View>
+        </View>
+        <TextInput
+          style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+          value={nickname}
+          onChangeText={setNickname}
+          placeholder="ニックネームを入力してください"
+          placeholderTextColor={colors.textSecondary}
+        />
+      </View>
+
+      {/* Custom Questions */}
+      {customQuestions.map((question) => {
+        switch (question.type) {
+          case 'scale':
+            return renderScaleQuestion(question);
+          case 'radio':
+            return renderRadioQuestion(question);
+          case 'checkbox':
+            return renderCheckboxQuestion(question);
+          case 'freetext':
+            return renderFreeTextQuestion(question);
+          default:
+            return null;
+        }
+      })}
+
+      {/* Error Message */}
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        </View>
+      )}
+
+      {/* Submit Button */}
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: colors.primary }]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.submitButtonText}>投稿する</Text>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    borderWidth: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
+  container: {
+    width: '100%',
     padding: 20,
   },
   formGroup: {

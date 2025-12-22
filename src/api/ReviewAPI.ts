@@ -458,5 +458,83 @@ export class ReviewAPI {
       throw new UKomiException('Network error', error instanceof Error ? error : undefined);
     }
   }
+
+  /**
+   * Submits a review for a product.
+   * 
+   * @param productId - The product ID to submit review for
+   * @param reviewData - Review submission data
+   * @param reviewData.rating - Star rating (1-5)
+   * @param reviewData.subject - Review title/subject
+   * @param reviewData.content - Review content/body
+   * @param reviewData.email - Reviewer email (required)
+   * @param reviewData.name - Reviewer name (optional)
+   * @param reviewData.nickname - Reviewer nickname (optional)
+   * @param reviewData.customAnswers - Custom question answers (optional)
+   * @returns Promise resolving to the created review
+   * @throws {UKomiApiException} When the API returns an error
+   * @throws {UKomiException} When a network error occurs
+   * 
+   * @example
+   * ```typescript
+   * const review = await sdk.reviews().submitReview('product-123', {
+   *   rating: 5,
+   *   subject: 'Great product!',
+   *   content: 'I really enjoyed this product...',
+   *   email: 'user@example.com',
+   *   name: 'John Doe',
+   *   nickname: 'Johnny'
+   * });
+   * ```
+   */
+  async submitReview(
+    productId: string,
+    reviewData: {
+      rating: number;
+      subject: string;
+      content: string;
+      email: string;
+      name?: string;
+      nickname?: string;
+      customAnswers?: Record<string, string | string[]>;
+    }
+  ): Promise<Review> {
+    try {
+      const body: Record<string, any> = {
+        access_token: this.accessToken,
+        product_id: productId,
+        score: reviewData.rating.toString(),
+        title: reviewData.subject,
+        content: reviewData.content,
+        email: reviewData.email,
+      };
+
+      if (reviewData.name) {
+        body.name = reviewData.name;
+      }
+      if (reviewData.nickname) {
+        body.nickname = reviewData.nickname;
+      }
+      if (reviewData.customAnswers && Object.keys(reviewData.customAnswers).length > 0) {
+        body.custom_answers = reviewData.customAnswers;
+      }
+
+      const response = await this.http.post<ReviewResponse>(
+        `reviews/${this.apiKey}/post`,
+        body
+      );
+
+      if (!response.review || response.review.length === 0) {
+        throw new UKomiApiException(400, 'Failed to submit review');
+      }
+
+      return response.review[0];
+    } catch (error) {
+      if (error instanceof UKomiApiException) {
+        throw error;
+      }
+      throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+    }
+  }
 }
 
