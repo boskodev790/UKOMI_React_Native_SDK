@@ -36,4 +36,6 @@ export { ApiConfig } from './config/ApiConfig';
 export { StarRating, StarRatingProps } from './components/StarRating';
 export { ProductReviewList, ProductReviewListProps } from './components/ProductReviewList';
 export { ProductQAList, ProductQAListProps } from './components/ProductQAList';
+export { AskQuestionForm, AskQuestionFormProps } from './components/AskQuestionForm';
+export { WriteReviewForm, WriteReviewFormProps, CustomQuestion } from './components/WriteReviewForm';
 

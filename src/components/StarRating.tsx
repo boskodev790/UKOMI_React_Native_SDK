@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   starRatingText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
     marginRight: 8,
   },

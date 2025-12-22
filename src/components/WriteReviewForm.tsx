@@ -1,0 +1,743 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  ViewStyle,
+  ActivityIndicator,
+} from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { UKomiSDK } from '../UKomiSDK';
+
+/**
+ * Custom question configuration
+ */
+export interface CustomQuestion {
+  id: string;
+  label: string;
+  type: 'scale' | 'radio' | 'checkbox' | 'freetext';
+  required: boolean;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+}
+
+/**
+ * Props for the WriteReviewForm component
+ */
+export interface WriteReviewFormProps {
+  /** The UKomiSDK instance (must be authenticated) */
+  sdk: UKomiSDK;
+  /** The product ID to submit review for */
+  productId: string;
+  /** Whether the form modal is visible */
+  visible: boolean;
+  /** Callback when form should be closed */
+  onClose: () => void;
+  /** Optional: Callback when review is successfully submitted */
+  onSubmitSuccess?: () => void;
+  /** Optional: Custom questions to display in the form */
+  customQuestions?: CustomQuestion[];
+  /** Optional: Custom colors for theming */
+  colors?: {
+    background?: string;
+    text?: string;
+    textSecondary?: string;
+    primary?: string;
+    border?: string;
+    surface?: string;
+    error?: string;
+  };
+}
+
+// Star SVG path
+const starPath = 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
+
+/**
+ * WriteReviewForm Component
+ * 
+ * Displays a form for writing a product review with custom questions support.
+ * 
+ * @example
+ * ```tsx
+ * <WriteReviewForm 
+ *   sdk={ukomiSDK} 
+ *   productId="product-123"
+ *   visible={showReviewForm}
+ *   onClose={() => setShowReviewForm(false)}
+ * />
+ * ```
+ */
+export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
+  sdk,
+  productId,
+  visible,
+  onClose,
+  onSubmitSuccess,
+  customQuestions = [],
+  colors: customColors,
+}) => {
+  const colors = {
+    background: customColors?.background || '#FFFFFF',
+    text: customColors?.text || '#000000',
+    textSecondary: customColors?.textSecondary || '#666666',
+    primary: customColors?.primary || '#3b82f6',
+    border: customColors?.border || '#e5e5e5',
+    surface: customColors?.surface || '#F5F5F5',
+    error: customColors?.error || '#ef4444',
+  };
+
+  const [rating, setRating] = useState(0);
+  const [subject, setSubject] = useState('');
+  const [content, setContent] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string | string[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Render a single star
+  const renderStar = (isFilled: boolean, starNumber: number, size: number = 24) => {
+    const fillColor = isFilled ? '#f5c518' : 'transparent';
+    const strokeColor = isFilled ? '#f5c518' : '#e0e0e0';
+
+    return (
+      <TouchableOpacity
+        key={starNumber}
+        onPress={() => setRating(starNumber)}
+        style={starNumber > 1 ? styles.starMargin : undefined}
+      >
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path
+            d={starPath}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </TouchableOpacity>
+    );
+  };
+
+  // Render stars for rating input
+  const renderStarInput = () => {
+    return (
+      <View style={styles.starsContainer}>
+        {[1, 2, 3, 4, 5].map((starNumber) => renderStar(starNumber <= rating, starNumber))}
+      </View>
+    );
+  };
+
+  // Render scale question
+  const renderScaleQuestion = (question: CustomQuestion) => {
+    const value = customAnswers[question.id] as string || '';
+    
+    return (
+      <View key={question.id} style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
+          {question.required ? (
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.requiredText}>必須</Text>
+            </View>
+          ) : (
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.scaleOptions}>
+          {question.options?.map((option, index) => {
+            const isSelected = value === option.value;
+            const level = index + 1;
+            const totalLevels = question.options?.length || 5;
+            
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={styles.scaleOption}
+                onPress={() => setCustomAnswers({ ...customAnswers, [question.id]: option.value })}
+              >
+                <View style={styles.scaleBarContainer}>
+                  {[...Array(totalLevels)].map((_, i) => {
+                    const isFilled = i < level;
+                    let barColor = '#e0e0e0';
+                    if (isFilled) {
+                      if (level <= 2) barColor = '#ef4444'; // Red for low
+                      else if (level === 3) barColor = '#f59e0b'; // Orange for medium
+                      else barColor = '#10b981'; // Green for high
+                    }
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.scaleBar,
+                          { backgroundColor: barColor },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+                <Text style={[styles.scaleOptionLabel, { color: colors.text }]}>{option.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  // Render radio question
+  const renderRadioQuestion = (question: CustomQuestion) => {
+    const value = customAnswers[question.id] as string || '';
+    
+    return (
+      <View key={question.id} style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
+          {question.required ? (
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.requiredText}>必須</Text>
+            </View>
+          ) : (
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.radioOptions}>
+          {question.options?.map((option) => {
+            const isSelected = value === option.value;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={styles.radioOption}
+                onPress={() => setCustomAnswers({ ...customAnswers, [question.id]: option.value })}
+              >
+                <View style={[styles.radioButton, { borderColor: colors.border }]}>
+                  {isSelected && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
+                </View>
+                <Text style={[styles.radioOptionLabel, { color: colors.text }]}>{option.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  // Render checkbox question
+  const renderCheckboxQuestion = (question: CustomQuestion) => {
+    const values = (customAnswers[question.id] as string[]) || [];
+    
+    const toggleOption = (optionValue: string) => {
+      const currentValues = [...values];
+      const index = currentValues.indexOf(optionValue);
+      if (index > -1) {
+        currentValues.splice(index, 1);
+      } else {
+        currentValues.push(optionValue);
+      }
+      setCustomAnswers({ ...customAnswers, [question.id]: currentValues });
+    };
+    
+    return (
+      <View key={question.id} style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
+          {question.required ? (
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.requiredText}>必須</Text>
+            </View>
+          ) : (
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.checkboxOptions}>
+          {question.options?.map((option) => {
+            const isSelected = values.includes(option.value);
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={styles.checkboxOption}
+                onPress={() => toggleOption(option.value)}
+              >
+                <View style={[styles.checkbox, { borderColor: colors.border }]}>
+                  {isSelected && (
+                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M20 6L9 17l-5-5"
+                        stroke={colors.primary}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  )}
+                </View>
+                <Text style={[styles.checkboxOptionLabel, { color: colors.text }]}>{option.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  // Render free text question
+  const renderFreeTextQuestion = (question: CustomQuestion) => {
+    const value = customAnswers[question.id] as string || '';
+    
+    return (
+      <View key={question.id} style={styles.formGroup}>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
+          {question.required ? (
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.requiredText}>必須</Text>
+            </View>
+          ) : (
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+            </View>
+          )}
+        </View>
+        <TextInput
+          style={[styles.textArea, { borderColor: colors.border, color: colors.text }]}
+          value={value}
+          onChangeText={(text) => setCustomAnswers({ ...customAnswers, [question.id]: text })}
+          placeholder={question.placeholder || '自由に入力してください'}
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+      </View>
+    );
+  };
+
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (rating === 0) {
+      setError('評価を選択してください');
+      return;
+    }
+    if (!subject.trim()) {
+      setError('件名を入力してください');
+      return;
+    }
+    if (!content.trim()) {
+      setError('本文を入力してください');
+      return;
+    }
+    if (!email.trim()) {
+      setError('メールアドレスを入力してください');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('有効なメールアドレスを入力してください');
+      return;
+    }
+
+    // Validate required custom questions
+    for (const question of customQuestions) {
+      if (question.required) {
+        const answer = customAnswers[question.id];
+        if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && !answer.trim())) {
+          setError(`${question.label}を入力してください`);
+          return;
+        }
+      }
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      // TODO: Implement API call to submit review
+      // Example: await sdk.reviews().submitReview(productId, { rating, subject, content, name, email, nickname, customAnswers });
+      
+      // For now, simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Reset form
+      setRating(0);
+      setSubject('');
+      setContent('');
+      setName('');
+      setEmail('');
+      setNickname('');
+      setCustomAnswers({});
+      
+      if (onSubmitSuccess) {
+        onSubmitSuccess();
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'レビューの投稿に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setRating(0);
+    setSubject('');
+    setContent('');
+    setName('');
+    setEmail('');
+    setNickname('');
+    setCustomAnswers({});
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>レビューを投稿</Text>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                <Path d="M18 6L6 18M6 6l12 12" stroke={colors.text} strokeWidth="2" strokeLinecap="round" />
+              </Svg>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* Rating Field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.text }]}>評価</Text>
+                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.requiredText}>必須</Text>
+                </View>
+              </View>
+              {renderStarInput()}
+            </View>
+
+            {/* Subject Field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.text }]}>件名</Text>
+                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.requiredText}>必須</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+                value={subject}
+                onChangeText={setSubject}
+                placeholder="件名を入力してください"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            {/* Content Field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.text }]}>本文</Text>
+                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.requiredText}>必須</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.textArea, { borderColor: colors.border, color: colors.text }]}
+                value={content}
+                onChangeText={setContent}
+                placeholder="レビュー本文を入力してください"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={8}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Name Field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.text }]}>お名前</Text>
+                <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+                  <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+                value={name}
+                onChangeText={setName}
+                placeholder="お名前を入力してください"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            {/* Email Field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.text }]}>メールアドレス</Text>
+                <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.requiredText}>必須</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="メールアドレスを入力してください"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Nickname Field */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.text }]}>ニックネーム</Text>
+                <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+                  <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+                value={nickname}
+                onChangeText={setNickname}
+                placeholder="ニックネームを入力してください"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            {/* Custom Questions */}
+            {customQuestions.map((question) => {
+              switch (question.type) {
+                case 'scale':
+                  return renderScaleQuestion(question);
+                case 'radio':
+                  return renderRadioQuestion(question);
+                case 'checkbox':
+                  return renderCheckboxQuestion(question);
+                case 'freetext':
+                  return renderFreeTextQuestion(question);
+                default:
+                  return null;
+              }
+            })}
+
+            {/* Error Message */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+              </View>
+            )}
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: colors.primary }]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>投稿する</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  scrollView: {
+    flex: 1,
+    padding: 20,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  requiredBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  requiredText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  optionalBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  optionalText: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  starMargin: {
+    marginLeft: 4,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 44,
+  },
+  textArea: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  scaleOptions: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  scaleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  scaleBarContainer: {
+    flexDirection: 'row',
+    gap: 2,
+    width: 96,
+  },
+  scaleBar: {
+    flex: 1,
+    height: 8,
+    borderRadius: 2,
+  },
+  scaleOptionLabel: {
+    fontSize: 14,
+    flex: 1,
+  },
+  radioOptions: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  radioOptionLabel: {
+    fontSize: 14,
+  },
+  checkboxOptions: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  checkboxOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOptionLabel: {
+    fontSize: 14,
+  },
+  errorContainer: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#fee2e2',
+  },
+  errorText: {
+    fontSize: 14,
+  },
+  submitButton: {
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
