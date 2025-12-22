@@ -35,13 +35,6 @@ export interface Question {
 /**
  * Questions wrapper for product-specific endpoint
  */
-export interface QuestionsWrapper {
-  questions: Question[];
-}
-
-/**
- * Questions response for view endpoint
- */
 export interface QuestionsResponse {
   total_questions?: string;
   total_unaswer_count?: string;
@@ -52,7 +45,7 @@ export interface QuestionsResponse {
  * Questions response for product-specific endpoint
  */
 export interface ProductQuestionsResponse {
-  questions?: QuestionsWrapper;
+  questions?: Question[];
 }
 
 /**

@@ -99,16 +99,6 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
   showLoading = true,
   t,
 }) => {
-  // Initial debug log
-  useEffect(() => {
-    console.log('[ProductQAList] Component initialized with props:', {
-      productId,
-      questionsPerPage,
-      hasSDK: !!sdk,
-      isAuthenticated: sdk?.isAuthenticated(),
-      hasTranslation: !!t,
-    });
-  }, []);
   // Default colors (can be overridden) - Dark theme by default
   const colors = {
     background: customColors?.background || '#000000',
@@ -131,18 +121,13 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
 
   // Fetch questions
   const fetchQuestions = useCallback(async () => {
-    console.log('[ProductQAList] fetchQuestions called', { productId, activeSort });
-    
     if (!sdk || !productId) {
-      const errorMsg = !sdk ? 'SDK is missing' : 'productId is missing';
-      console.error('[ProductQAList] Validation error:', errorMsg);
-      setError(errorMsg);
+      setError('SDK or productId is missing');
       setLoading(false);
       return;
     }
 
     if (!sdk.isAuthenticated()) {
-      console.error('[ProductQAList] SDK is not authenticated');
       setError('SDK is not authenticated');
       setLoading(false);
       return;
@@ -151,11 +136,8 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
     try {
       setLoading(true);
       setError(null);
-      console.log('[ProductQAList] Fetching questions for productId:', productId);
 
       const allQuestions = await sdk.questions().getProductQuestions(productId);
-      console.log('[ProductQAList] Fetched questions:', allQuestions?.length || 0, 'questions');
-      console.log('[ProductQAList] Questions data:', JSON.stringify(allQuestions, null, 2));
 
       // Sort questions
       let sortedQuestions = [...allQuestions];
@@ -165,52 +147,29 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
           const dateB = b.published ? new Date(b.published).getTime() : 0;
           return dateB - dateA; // Descending (newest first)
         });
-        console.log('[ProductQAList] Sorted by date');
       } else if (activeSort === 'helpful') {
-        // Note: helpful sorting uses local state, which may not match server data
         sortedQuestions.sort((a, b) => {
           const countA = helpfulCounts[a.id] || 0;
           const countB = helpfulCounts[b.id] || 0;
           return countB - countA; // Descending (most helpful first)
         });
-        console.log('[ProductQAList] Sorted by helpful, helpfulCounts:', helpfulCounts);
       }
 
-      console.log('[ProductQAList] Setting questions:', sortedQuestions.length);
       setQuestions(sortedQuestions);
-      const pages = Math.ceil(sortedQuestions.length / questionsPerPage);
-      console.log('[ProductQAList] Total pages:', pages, 'Questions per page:', questionsPerPage);
-      console.log('[ProductQAList] First question sample:', sortedQuestions[0] ? {
-        id: sortedQuestions[0].id,
-        question: sortedQuestions[0].question?.substring(0, 50),
-        hasAnswer: !!sortedQuestions[0].answer,
-        published: sortedQuestions[0].published,
-      } : 'No questions');
-      setTotalPages(pages);
+      setTotalPages(Math.ceil(sortedQuestions.length / questionsPerPage));
     } catch (err) {
-      console.error('[ProductQAList] Error fetching questions:', err);
-      console.error('[ProductQAList] Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined,
-        error: err
-      });
+      console.error('Error fetching questions:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch questions');
       setQuestions([]);
     } finally {
       setLoading(false);
-      console.log('[ProductQAList] Fetch completed, loading set to false');
     }
-    // Note: helpfulCounts is intentionally excluded - it's used for sorting only, not fetching
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sdk, productId, activeSort, questionsPerPage]);
+  }, [sdk, productId, activeSort, helpfulCounts, questionsPerPage]);
 
   // Initial fetch and refetch on dependencies change
   useEffect(() => {
-    console.log('[ProductQAList] useEffect triggered, calling fetchQuestions');
     fetchQuestions();
-    // Note: helpfulCounts is intentionally excluded to avoid refetching on helpful clicks
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sdk, productId, activeSort]);
+  }, [fetchQuestions]);
 
   // Helper function to get translated text
   const getText = (key: string, fallback: string): string => {
@@ -346,19 +305,6 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
 
   const paginatedQuestions = getPaginatedQuestions();
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[ProductQAList] Component state:', {
-      loading,
-      error,
-      questionsCount: questions.length,
-      currentPage,
-      totalPages,
-      paginatedQuestionsCount: paginatedQuestions.length,
-      activeSort,
-    });
-  }, [loading, error, questions.length, currentPage, totalPages, paginatedQuestions.length, activeSort]);
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }, containerStyle]}>
       {/* Sort Buttons */}
@@ -414,12 +360,7 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
       {/* Error State */}
       {error && !loading && (
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: colors.error }]}>Error: {error}</Text>
-          {__DEV__ && (
-            <Text style={[styles.errorText, { color: colors.error, fontSize: 12, marginTop: 8 }]}>
-              Check console for details
-            </Text>
-          )}
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
         </View>
       )}
 

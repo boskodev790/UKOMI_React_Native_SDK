@@ -102,13 +102,12 @@ export class QuestionAPI {
       const response = await this.http.get<ProductQuestionsResponse>(
         `questions/${this.apiKey}/${productId}`
       );
-      console.log('question response', response);
 
-      if (!response.questions?.questions) {
+      if (!response.questions) {
         return [];
       }
 
-      return response.questions.questions;
+      return response.questions;
     } catch (error) {
       if (error instanceof UKomiApiException) {
         throw error;
