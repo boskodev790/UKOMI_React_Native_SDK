@@ -119,7 +119,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   const renderStar = (isFilled: boolean, key: number) => {
     const fillColor = isFilled ? '#f5c518' : 'transparent';
     const strokeColor = isFilled ? '#f5c518' : '#e0e0e0';
-    
+
     return (
       <Svg
         key={key}
@@ -181,6 +181,9 @@ export const StarRating: React.FC<StarRatingProps> = ({
 
   return (
     <View style={[styles.container, containerStyle]}>
+      <Text style={styles.starRatingText}>
+        {averageRating}
+      </Text>
       {renderStars()}
       {reviewCount > 0 && (
         <Text style={[styles.count, countStyle, styles.countMargin]}>
@@ -195,6 +198,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  starRatingText: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
   },
   starsContainer: {
     flexDirection: 'row',
