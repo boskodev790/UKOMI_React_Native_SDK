@@ -134,6 +134,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   // Render scale question
   const renderScaleQuestion = (question: CustomQuestion) => {
     const value = customAnswers[question.id] as string || '';
+    const totalLevels = question.options?.length || 5;
     
     return (
       <View key={question.id} style={styles.formGroup}>
@@ -153,7 +154,6 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
           {question.options?.map((option, index) => {
             const isSelected = value === option.value;
             const level = index + 1;
-            const totalLevels = question.options?.length || 5;
             
             return (
               <TouchableOpacity
@@ -161,11 +161,15 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
                 style={styles.scaleOption}
                 onPress={() => setCustomAnswers({ ...customAnswers, [question.id]: option.value })}
               >
+                <View style={[styles.radioButton, { borderColor: colors.border }]}>
+                  {isSelected && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
+                </View>
                 <View style={styles.scaleBarContainer}>
                   {[...Array(totalLevels)].map((_, i) => {
                     const isFilled = i < level;
                     let barColor = '#e0e0e0';
                     if (isFilled) {
+                      // Color gradient: red for low, green for high
                       if (level <= 2) barColor = '#ef4444'; // Red for low
                       else if (level === 3) barColor = '#f59e0b'; // Orange for medium
                       else barColor = '#10b981'; // Green for high
@@ -403,7 +407,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.formAdvanced, { backgroundColor: colors.background, borderColor: colors.border }]}>
       {/* Rating Field */}
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
@@ -545,9 +549,12 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
+  formAdvanced: {
     width: '100%',
-    padding: 20,
+    maxWidth: 600,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 20, // 1.25rem = 20px
   },
   formGroup: {
     marginBottom: 20,
@@ -605,12 +612,12 @@ const styles = StyleSheet.create({
   },
   scaleOptions: {
     flexDirection: 'column',
-    gap: 8,
+    gap: 8, // 0.5rem = 8px
   },
   scaleOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 12, // 0.75rem = 12px
   },
   scaleBarContainer: {
     flexDirection: 'row',
@@ -623,17 +630,17 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   scaleOptionLabel: {
-    fontSize: 14,
+    fontSize: 14, // 0.875rem = 14px
     flex: 1,
   },
   radioOptions: {
     flexDirection: 'column',
-    gap: 12,
+    gap: 8, // 0.5rem = 8px
   },
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 12, // 0.75rem = 12px
   },
   radioButton: {
     width: 20,
@@ -649,16 +656,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   radioOptionLabel: {
-    fontSize: 14,
+    fontSize: 14, // 0.875rem = 14px
   },
   checkboxOptions: {
     flexDirection: 'column',
-    gap: 12,
+    gap: 8, // 0.5rem = 8px
   },
   checkboxOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 12, // 0.75rem = 12px
   },
   checkbox: {
     width: 20,
@@ -669,7 +676,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxOptionLabel: {
-    fontSize: 14,
+    fontSize: 14, // 0.875rem = 14px
   },
   errorContainer: {
     marginBottom: 16,
