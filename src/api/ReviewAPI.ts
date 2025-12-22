@@ -414,7 +414,6 @@ export class ReviewAPI {
   ): Promise<ReviewResponse> {
     try {
       const queryParams: Record<string, number | string> = {};
-      queryParams.access_token = this.accessToken;
       if (params) {
         if (params.count) queryParams.count = params.count;
         if (params.page) queryParams.page = params.page;
