@@ -22,6 +22,7 @@ export interface CustomQuestion {
   required: boolean;
   options?: { value: string; label: string }[];
   placeholder?: string;
+  scaleType?: 'satisfaction' | 'quantity'; // For different bar colors: 'satisfaction' = blue, 'quantity' = red/green
 }
 
 /**
@@ -155,37 +156,44 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
             const isSelected = value === option.value;
             const level = index + 1;
             
+            // Determine bar color based on scale type
+            let barColor = '#3B82F6'; // Default blue for satisfaction
+            if (question.scaleType === 'quantity') {
+              // For quantity: red for extremes (1, 5), green for middle options (2, 3, 4)
+              if (level === 1 || level === 5) barColor = '#EF4444'; // Red - too little or too much
+              else barColor = '#10B981'; // Green - slightly less, just right, or slightly too much
+            } else {
+              // For satisfaction: blue gradient (all blue)
+              barColor = '#3B82F6'; // Blue
+            }
+            
             return (
               <TouchableOpacity
                 key={option.value}
-                style={styles.scaleOption}
+                style={[styles.scaleOption, index > 0 && { marginTop: 8 }]}
                 onPress={() => setCustomAnswers({ ...customAnswers, [question.id]: option.value })}
               >
                 <View style={[styles.radioButton, { borderColor: colors.border }]}>
                   {isSelected && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
                 </View>
-                <View style={styles.scaleBarContainer}>
+                <View style={[styles.scaleBarContainer, { marginLeft: 12 }]}>
                   {[...Array(totalLevels)].map((_, i) => {
                     const isFilled = i < level;
-                    let barColor = '#e0e0e0';
-                    if (isFilled) {
-                      // Color gradient: red for low, green for high
-                      if (level <= 2) barColor = '#ef4444'; // Red for low
-                      else if (level === 3) barColor = '#f59e0b'; // Orange for medium
-                      else barColor = '#10b981'; // Green for high
-                    }
                     return (
                       <View
                         key={i}
                         style={[
                           styles.scaleBar,
-                          { backgroundColor: barColor },
+                          { 
+                            backgroundColor: isFilled ? barColor : '#E5E5E5',
+                            ...(i > 0 && { marginLeft: 2 }),
+                          },
                         ]}
                       />
                     );
                   })}
                 </View>
-                <Text style={[styles.scaleOptionLabel, { color: colors.text }]}>{option.label}</Text>
+                <Text style={[styles.scaleOptionLabel, { color: colors.text, marginLeft: 12 }]}>{option.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -213,18 +221,18 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
           )}
         </View>
         <View style={styles.radioOptions}>
-          {question.options?.map((option) => {
+          {question.options?.map((option, index) => {
             const isSelected = value === option.value;
             return (
               <TouchableOpacity
                 key={option.value}
-                style={styles.radioOption}
+                style={[styles.radioOption, index > 0 && { marginTop: 8 }]}
                 onPress={() => setCustomAnswers({ ...customAnswers, [question.id]: option.value })}
               >
                 <View style={[styles.radioButton, { borderColor: colors.border }]}>
                   {isSelected && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
                 </View>
-                <Text style={[styles.radioOptionLabel, { color: colors.text }]}>{option.label}</Text>
+                <Text style={[styles.radioOptionLabel, { color: colors.text, marginLeft: 12 }]}>{option.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -253,22 +261,22 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
           {question.required ? (
-            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
               <Text style={styles.requiredText}>必須</Text>
             </View>
           ) : (
-            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
               <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
             </View>
           )}
         </View>
         <View style={styles.checkboxOptions}>
-          {question.options?.map((option) => {
+          {question.options?.map((option, index) => {
             const isSelected = values.includes(option.value);
             return (
               <TouchableOpacity
                 key={option.value}
-                style={styles.checkboxOption}
+                style={[styles.checkboxOption, index > 0 && { marginTop: 8 }]}
                 onPress={() => toggleOption(option.value)}
               >
                 <View style={[styles.checkbox, { borderColor: colors.border }]}>
@@ -284,7 +292,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
                     </Svg>
                   )}
                 </View>
-                <Text style={[styles.checkboxOptionLabel, { color: colors.text }]}>{option.label}</Text>
+                <Text style={[styles.checkboxOptionLabel, { color: colors.text, marginLeft: 12 }]}>{option.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -302,11 +310,11 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
           {question.required ? (
-            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
               <Text style={styles.requiredText}>必須</Text>
             </View>
           ) : (
-            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
               <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
             </View>
           )}
@@ -412,7 +420,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>評価</Text>
-          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
             <Text style={styles.requiredText}>必須</Text>
           </View>
         </View>
@@ -423,7 +431,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>件名</Text>
-          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
             <Text style={styles.requiredText}>必須</Text>
           </View>
         </View>
@@ -440,7 +448,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>本文</Text>
-          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
             <Text style={styles.requiredText}>必須</Text>
           </View>
         </View>
@@ -477,7 +485,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>メールアドレス</Text>
-          <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+          <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
             <Text style={styles.requiredText}>必須</Text>
           </View>
         </View>
@@ -496,7 +504,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>ニックネーム</Text>
-          <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+          <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
             <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
           </View>
         </View>
@@ -563,7 +571,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    gap: 8,
   },
   label: {
     fontSize: 14,
@@ -612,16 +619,13 @@ const styles = StyleSheet.create({
   },
   scaleOptions: {
     flexDirection: 'column',
-    gap: 8, // 0.5rem = 8px
   },
   scaleOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12, // 0.75rem = 12px
   },
   scaleBarContainer: {
     flexDirection: 'row',
-    gap: 2,
     width: 96,
   },
   scaleBar: {
@@ -635,12 +639,10 @@ const styles = StyleSheet.create({
   },
   radioOptions: {
     flexDirection: 'column',
-    gap: 8, // 0.5rem = 8px
   },
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12, // 0.75rem = 12px
   },
   radioButton: {
     width: 20,
@@ -660,12 +662,10 @@ const styles = StyleSheet.create({
   },
   checkboxOptions: {
     flexDirection: 'column',
-    gap: 8, // 0.5rem = 8px
   },
   checkboxOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12, // 0.75rem = 12px
   },
   checkbox: {
     width: 20,
