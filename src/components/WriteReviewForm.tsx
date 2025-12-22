@@ -12,16 +12,12 @@ import Svg, { Path } from 'react-native-svg';
 import { UKomiSDK } from '../UKomiSDK';
 import { UKomiApiException, UKomiException } from '../errors/UKomiException';
 
-/**
- * Custom question configuration
- */
-export interface CustomQuestion {
+interface InternalQuestion {
   id: string;
   label: string;
-  type: 'scale' | 'radio' | 'checkbox' | 'freetext';
+  type: 'scale' | 'radio';
   required: boolean;
-  options?: { value: string; label: string }[];
-  placeholder?: string;
+  options: { value: string; label: string }[];
   scaleType?: 'satisfaction' | 'quantity'; // For different bar colors: 'satisfaction' = blue, 'quantity' = red/green
 }
 
@@ -37,8 +33,6 @@ export interface WriteReviewFormProps {
   onClose?: () => void;
   /** Optional: Callback when review is successfully submitted */
   onSubmitSuccess?: () => void;
-  /** Optional: Custom questions to display in the form */
-  customQuestions?: CustomQuestion[];
   /** Optional: Custom colors for theming */
   colors?: {
     background?: string;
@@ -76,9 +70,50 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   productId,
   onClose,
   onSubmitSuccess,
-  customQuestions = [],
   colors: customColors,
 }) => {
+  // Built-in questions matching the screenshot
+  const builtInQuestions: InternalQuestion[] = [
+    {
+      id: 'taste',
+      label: '美味しさはいかがでしたか?',
+      type: 'scale',
+      required: false,
+      scaleType: 'satisfaction',
+      options: [
+        { value: 'satisfied', label: '満足' },
+        { value: 'slightly_satisfied', label: '少し満足' },
+        { value: 'normal', label: '普通' },
+        { value: 'slightly_dissatisfied', label: '少し不満' },
+        { value: 'dissatisfied', label: '不満' },
+      ],
+    },
+    {
+      id: 'quantity',
+      label: '内容量はいかがでしたか?',
+      type: 'scale',
+      required: false,
+      scaleType: 'quantity',
+      options: [
+        { value: 'little', label: '少ない' },
+        { value: 'slightly_little', label: '少し少ない' },
+        { value: 'just_right', label: 'ちょうど良い' },
+        { value: 'slightly_much', label: '少し多い' },
+        { value: 'much', label: '多い' },
+      ],
+    },
+    {
+      id: 'freetext_test',
+      label: 'フリーテキストのテスト',
+      type: 'radio',
+      required: false,
+      options: [
+        { value: 'option1', label: '選択肢1' },
+        { value: 'option2', label: '選択肢2' },
+        { value: 'option3', label: '選択肢3 (フリーテキスト)' },
+      ],
+    },
+  ];
   const colors = {
     background: customColors?.background || '#FFFFFF',
     text: customColors?.text || '#000000',
@@ -95,7 +130,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
-  const [customAnswers, setCustomAnswers] = useState<Record<string, string | string[]>>({});
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,26 +168,26 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   };
 
   // Render scale question
-  const renderScaleQuestion = (question: CustomQuestion) => {
-    const value = customAnswers[question.id] as string || '';
-    const totalLevels = question.options?.length || 5;
+  const renderScaleQuestion = (question: InternalQuestion) => {
+    const value = customAnswers[question.id] || '';
+    const totalLevels = question.options.length;
     
     return (
       <View key={question.id} style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
           {question.required ? (
-            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
               <Text style={styles.requiredText}>必須</Text>
             </View>
           ) : (
-            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
               <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
             </View>
           )}
         </View>
         <View style={styles.scaleOptions}>
-          {question.options?.map((option, index) => {
+          {question.options.map((option, index) => {
             const isSelected = value === option.value;
             const level = index + 1;
             
@@ -203,25 +238,25 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   };
 
   // Render radio question
-  const renderRadioQuestion = (question: CustomQuestion) => {
-    const value = customAnswers[question.id] as string || '';
+  const renderRadioQuestion = (question: InternalQuestion) => {
+    const value = customAnswers[question.id] || '';
     
     return (
       <View key={question.id} style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
           {question.required ? (
-            <View style={[styles.requiredBadge, { backgroundColor: colors.primary }]}>
+            <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
               <Text style={styles.requiredText}>必須</Text>
             </View>
           ) : (
-            <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+            <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
               <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
             </View>
           )}
         </View>
         <View style={styles.radioOptions}>
-          {question.options?.map((option, index) => {
+          {question.options.map((option, index) => {
             const isSelected = value === option.value;
             return (
               <TouchableOpacity
@@ -241,97 +276,6 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
     );
   };
 
-  // Render checkbox question
-  const renderCheckboxQuestion = (question: CustomQuestion) => {
-    const values = (customAnswers[question.id] as string[]) || [];
-    
-    const toggleOption = (optionValue: string) => {
-      const currentValues = [...values];
-      const index = currentValues.indexOf(optionValue);
-      if (index > -1) {
-        currentValues.splice(index, 1);
-      } else {
-        currentValues.push(optionValue);
-      }
-      setCustomAnswers({ ...customAnswers, [question.id]: currentValues });
-    };
-    
-    return (
-      <View key={question.id} style={styles.formGroup}>
-        <View style={styles.labelRow}>
-          <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
-          {question.required ? (
-            <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
-              <Text style={styles.requiredText}>必須</Text>
-            </View>
-          ) : (
-            <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
-              <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.checkboxOptions}>
-          {question.options?.map((option, index) => {
-            const isSelected = values.includes(option.value);
-            return (
-              <TouchableOpacity
-                key={option.value}
-                style={[styles.checkboxOption, index > 0 && { marginTop: 8 }]}
-                onPress={() => toggleOption(option.value)}
-              >
-                <View style={[styles.checkbox, { borderColor: colors.border }]}>
-                  {isSelected && (
-                    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M20 6L9 17l-5-5"
-                        stroke={colors.primary}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                  )}
-                </View>
-                <Text style={[styles.checkboxOptionLabel, { color: colors.text, marginLeft: 12 }]}>{option.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    );
-  };
-
-  // Render free text question
-  const renderFreeTextQuestion = (question: CustomQuestion) => {
-    const value = customAnswers[question.id] as string || '';
-    
-    return (
-      <View key={question.id} style={styles.formGroup}>
-        <View style={styles.labelRow}>
-          <Text style={[styles.label, { color: colors.text }]}>{question.label}</Text>
-          {question.required ? (
-            <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
-              <Text style={styles.requiredText}>必須</Text>
-            </View>
-          ) : (
-            <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
-              <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
-            </View>
-          )}
-        </View>
-        <TextInput
-          style={[styles.textArea, { borderColor: colors.border, color: colors.text }]}
-          value={value}
-          onChangeText={(text) => setCustomAnswers({ ...customAnswers, [question.id]: text })}
-          placeholder={question.placeholder || '自由に入力してください'}
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-      </View>
-    );
-  };
 
   const handleSubmit = async () => {
     // Validate required fields
@@ -359,11 +303,11 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       return;
     }
 
-    // Validate required custom questions
-    for (const question of customQuestions) {
+    // Validate required built-in questions
+    for (const question of builtInQuestions) {
       if (question.required) {
         const answer = customAnswers[question.id];
-        if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && !answer.trim())) {
+        if (!answer || (typeof answer === 'string' && !answer.trim())) {
           setError(`${question.label}を入力してください`);
           return;
         }
@@ -468,7 +412,7 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
           <Text style={[styles.label, { color: colors.text }]}>お名前</Text>
-          <View style={[styles.optionalBadge, { backgroundColor: colors.surface }]}>
+          <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
             <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
           </View>
         </View>
@@ -517,20 +461,14 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
         />
       </View>
 
-      {/* Custom Questions */}
-      {customQuestions.map((question) => {
-        switch (question.type) {
-          case 'scale':
-            return renderScaleQuestion(question);
-          case 'radio':
-            return renderRadioQuestion(question);
-          case 'checkbox':
-            return renderCheckboxQuestion(question);
-          case 'freetext':
-            return renderFreeTextQuestion(question);
-          default:
-            return null;
+      {/* Built-in Questions */}
+      {builtInQuestions.map((question) => {
+        if (question.type === 'scale') {
+          return renderScaleQuestion(question);
+        } else if (question.type === 'radio') {
+          return renderRadioQuestion(question);
         }
+        return null;
       })}
 
       {/* Error Message */}
@@ -658,24 +596,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   radioOptionLabel: {
-    fontSize: 14, // 0.875rem = 14px
-  },
-  checkboxOptions: {
-    flexDirection: 'column',
-  },
-  checkboxOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxOptionLabel: {
     fontSize: 14, // 0.875rem = 14px
   },
   errorContainer: {
