@@ -497,6 +497,7 @@ export class ReviewAPI {
       name?: string;
       nickname?: string;
       customAnswers?: Record<string, string | string[]>;
+      verificationToken?: string;
     }
   ): Promise<Review> {
     try {
@@ -517,6 +518,9 @@ export class ReviewAPI {
       }
       if (reviewData.customAnswers && Object.keys(reviewData.customAnswers).length > 0) {
         body.custom_answers = reviewData.customAnswers;
+      }
+      if (reviewData.verificationToken) {
+        body.verification_token = reviewData.verificationToken;
       }
 
       const response = await this.http.post<ReviewResponse>(

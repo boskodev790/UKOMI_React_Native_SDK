@@ -29,10 +29,14 @@ export interface WriteReviewFormProps {
   sdk: UKomiSDK;
   /** The product ID to submit review for */
   productId: string;
+  /** Optional: Verification token for order verification */
+  verificationToken?: string;
   /** Callback when form should be closed (e.g., after successful submission) */
   onClose?: () => void;
   /** Optional: Callback when review is successfully submitted */
   onSubmitSuccess?: () => void;
+  /** Optional: Hide user fields (email, name, nickname) - useful for mobile apps where user is already authenticated */
+  hideUserFields?: boolean;
   /** Optional: Custom colors for theming */
   colors?: {
     background?: string;
@@ -68,8 +72,10 @@ const starPath = 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63
 export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   sdk,
   productId,
+  verificationToken,
   onClose,
   onSubmitSuccess,
+  hideUserFields = false,
   colors: customColors,
 }) => {
   // Built-in questions matching the screenshot
@@ -133,6 +139,9 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If hideUserFields is true, we don't need email/name/nickname
+  // For mobile apps, the user is already authenticated
 
   // Render a single star
   const renderStar = (isFilled: boolean, starNumber: number, size: number = 24) => {
@@ -291,16 +300,20 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       setError('本文を入力してください');
       return;
     }
-    if (!email.trim()) {
-      setError('メールアドレスを入力してください');
-      return;
-    }
+    
+    // Only validate email if user fields are not hidden
+    if (!hideUserFields) {
+      if (!email.trim()) {
+        setError('メールアドレスを入力してください');
+        return;
+      }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('有効なメールアドレスを入力してください');
-      return;
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('有効なメールアドレスを入力してください');
+        return;
+      }
     }
 
     // Validate required built-in questions
@@ -322,10 +335,11 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
         rating,
         subject,
         content,
-        email,
-        name: name || undefined,
-        nickname: nickname || undefined,
+        email: hideUserFields ? '' : email, // Empty email when hidden - API should use authenticated user's email
+        name: hideUserFields ? undefined : (name || undefined),
+        nickname: hideUserFields ? undefined : (nickname || undefined),
         customAnswers: Object.keys(customAnswers).length > 0 ? customAnswers : undefined,
+        verificationToken: verificationToken,
       });
       
       // Reset form
