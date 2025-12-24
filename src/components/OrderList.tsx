@@ -28,26 +28,6 @@ export interface OrderListProps {
   ordersPerPage?: number;
   /** Optional: Custom style for the container */
   containerStyle?: ViewStyle;
-  /** Optional: Title text (default: 'Order History') */
-  title?: string;
-  /** Optional: Text for 'No image' placeholder */
-  noImageText?: string;
-  /** Optional: Text for 'Order Date' label */
-  orderDateLabel?: string;
-  /** Optional: Text for 'Write a Review' button */
-  writeReviewText?: string;
-  /** Optional: Text for 'Review Already Submitted' button */
-  reviewSubmittedText?: string;
-  /** Optional: Text for 'Loading orders...' */
-  loadingText?: string;
-  /** Optional: Text for empty state */
-  emptyText?: string;
-  /** Optional: Text for pagination */
-  paginationText?: {
-    previous?: string;
-    next?: string;
-    page?: string;
-  };
   /** Optional: Custom colors for theming. Defaults to dark theme if not provided. */
   colors?: {
     background?: string;
@@ -104,18 +84,6 @@ export const OrderList: React.FC<OrderListProps> = ({
   customerId,
   ordersPerPage = 5,
   containerStyle,
-  title = 'Order History',
-  noImageText = 'No image',
-  orderDateLabel = 'Order Date',
-  writeReviewText = 'Write a Review',
-  reviewSubmittedText = 'Review Already Submitted',
-  loadingText = 'Loading orders...',
-  emptyText = 'No available Orders',
-  paginationText = {
-    previous: 'Previous',
-    next: 'Next',
-    page: 'Page',
-  },
   colors: customColors,
   onProductPress,
   writeReviewFormProps,
@@ -236,7 +204,7 @@ export const OrderList: React.FC<OrderListProps> = ({
               },
             ]}
           >
-            {paginationText.previous}
+            Previous
           </Text>
         </TouchableOpacity>
 
@@ -247,7 +215,7 @@ export const OrderList: React.FC<OrderListProps> = ({
           ]}
         >
           <Text style={[styles.pageText, { color: colors.text }]}>
-            {paginationText.page} {currentPage} / {totalPages}
+            Page {currentPage} / {totalPages}
           </Text>
         </View>
 
@@ -271,7 +239,7 @@ export const OrderList: React.FC<OrderListProps> = ({
               },
             ]}
           >
-            {paginationText.next}
+            Next
           </Text>
         </TouchableOpacity>
       </View>
@@ -304,7 +272,7 @@ export const OrderList: React.FC<OrderListProps> = ({
               ]}
             >
               <Text style={[styles.noImageText, { color: colors.textSecondary }]}>
-                {noImageText}
+                No image
               </Text>
             </View>
           )}
@@ -323,7 +291,7 @@ export const OrderList: React.FC<OrderListProps> = ({
           </TouchableOpacity>
 
           <Text style={[styles.orderDateText, { color: colors.textSecondary }]}>
-            {orderDateLabel}: {formatDate(order.order_date)}
+            Order Date: {formatDate(order.order_date)}
           </Text>
 
           <View style={styles.productActions}>
@@ -346,7 +314,7 @@ export const OrderList: React.FC<OrderListProps> = ({
                   },
                 ]}
               >
-                {product.token ? writeReviewText : reviewSubmittedText}
+                {product.token ? 'Write a Review' : 'Review Already Submitted'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -366,7 +334,7 @@ export const OrderList: React.FC<OrderListProps> = ({
       >
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-          {loadingText}
+          Loading orders...
         </Text>
       </View>
     );
@@ -435,7 +403,7 @@ export const OrderList: React.FC<OrderListProps> = ({
         { backgroundColor: colors.background },
       ]}
     >
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Order History</Text>
 
       {productItems.length > 0 ? (
         <>
@@ -453,7 +421,7 @@ export const OrderList: React.FC<OrderListProps> = ({
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            {emptyText}
+            No available Orders
           </Text>
         </View>
       )}
