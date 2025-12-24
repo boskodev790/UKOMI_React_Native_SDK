@@ -95,6 +95,15 @@ export interface CustomerOrdersMetadata {
 }
 
 /**
+ * Raw API response from customer_order endpoint
+ */
+export interface CustomerOrdersApiResponse {
+  status: string;
+  orders: CustomerOrder[];
+  metadata?: CustomerOrdersMetadata;
+}
+
+/**
  * Customer orders response
  */
 export interface CustomerOrdersResponse {

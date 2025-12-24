@@ -80,6 +80,28 @@ export class HttpClient {
   }
 
   /**
+   * Makes a POST request and returns the raw response without processing.
+   * Useful for endpoints that return non-standard response formats.
+   * @param url - The endpoint URL (relative to base URL)
+   * @param data - The request payload
+   * @param config - Optional Axios request configuration
+   * @returns Promise resolving to the raw response data
+   * @throws {UKomiApiException} When the API returns an error response
+   * @throws {UKomiNetworkException} When a network error occurs
+   */
+  async postRaw<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    try {
+      const response = await this.client.post<T>(url, data, config);
+      if (response.status >= 200 && response.status < 300) {
+        return response.data;
+      }
+      throw new UKomiApiException(response.status, `Request failed with status ${response.status}`);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Makes a POST request with multipart/form-data payload.
    * @param url - The endpoint URL (relative to base URL)
    * @param formData - The FormData object to send

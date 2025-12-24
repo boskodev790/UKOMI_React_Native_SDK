@@ -1,6 +1,6 @@
 import { HttpClient } from '../utils/HttpClient';
 import { UKomiApiException, UKomiException } from '../errors/UKomiException';
-import { Order, OrderRequestParams, OrderRequestBody, OrdersResponse, CustomerOrdersResponse, CustomerOrdersRequestBody } from '../types/OrderModels';
+import { Order, OrderRequestParams, OrderRequestBody, OrdersResponse, CustomerOrdersResponse, CustomerOrdersRequestBody, CustomerOrdersApiResponse, CustomerOrdersMetadata } from '../types/OrderModels';
 
 /**
  * Order API client for retrieving order information.
@@ -83,13 +83,38 @@ export class OrderAPI {
         limit,
       };
 
-      const response = await this.http.post<CustomerOrdersResponse>(
+      // Use postRaw to handle the actual API response format: { status: "success", orders: [], metadata?: {} }
+      const responseData = await this.http.postRaw<CustomerOrdersApiResponse>(
         `orders/${this.apiKey}/customer_order`,
         body
       );
-      return response;
+
+      // Handle the actual API response format
+      if (responseData.status === 'success' && responseData.orders) {
+        // Use provided metadata or create default metadata
+        const metadata: CustomerOrdersMetadata = responseData.metadata || {
+          total_orders: responseData.orders.length,
+          page: page,
+          // If no metadata provided, assume current page is the only/last page
+          // This happens when API doesn't return pagination info
+          total_pages: responseData.orders.length < limit ? page : page + 1,
+        };
+
+        return {
+          orders: responseData.orders,
+          metadata,
+        };
+      }
+
+      throw new UKomiApiException(
+        500,
+        responseData.status || 'Unexpected response format'
+      );
     } catch (error) {
       if (error instanceof UKomiApiException) {
+        throw error;
+      }
+      if (error instanceof UKomiException) {
         throw error;
       }
       throw new UKomiException('Network error', error instanceof Error ? error : undefined);
