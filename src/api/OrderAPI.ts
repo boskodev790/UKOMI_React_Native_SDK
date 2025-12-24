@@ -1,6 +1,6 @@
 import { HttpClient } from '../utils/HttpClient';
 import { UKomiApiException, UKomiException } from '../errors/UKomiException';
-import { Order, OrderRequestParams, OrderRequestBody, OrdersResponse } from '../types/OrderModels';
+import { Order, OrderRequestParams, OrderRequestBody, OrdersResponse, CustomerOrdersResponse, CustomerOrdersRequestBody } from '../types/OrderModels';
 
 /**
  * Order API client for retrieving order information.
@@ -45,6 +45,49 @@ export class OrderAPI {
 
       const response = await this.http.post<OrdersResponse>(`orders/${this.apiKey}/`, body);
       return response.orders || [];
+    } catch (error) {
+      if (error instanceof UKomiApiException) {
+        throw error;
+      }
+      throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Retrieves customer orders with pagination.
+   * 
+   * @param customerId - The customer ID to fetch orders for
+   * @param page - Page number (default: 1)
+   * @param limit - Number of orders per page (default: 10)
+   * @returns Promise resolving to customer orders response with metadata
+   * @throws {UKomiApiException} When the API returns an error
+   * @throws {UKomiException} When a network error occurs
+   * 
+   * @example
+   * ```typescript
+   * const response = await sdk.orderAPI().getCustomerOrders('customer-123', 1, 10);
+   * console.log('Orders:', response.orders);
+   * console.log('Total pages:', response.metadata.total_pages);
+   * ```
+   */
+  async getCustomerOrders(
+    customerId: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<CustomerOrdersResponse> {
+    try {
+      const body: CustomerOrdersRequestBody = {
+        access_token: this.accessToken,
+        customer_id: customerId,
+        page,
+        limit,
+      };
+
+      const response = await this.http.post<CustomerOrdersResponse>(
+        `orders/${this.apiKey}/customer_order`,
+        body
+      );
+      return response;
     } catch (error) {
       if (error instanceof UKomiApiException) {
         throw error;
