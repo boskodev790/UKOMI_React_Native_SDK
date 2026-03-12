@@ -4,10 +4,9 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Provides methods to access order data and associated customer information.
  */
 export class OrderAPI {
-    constructor(http, apiKey, accessToken) {
+    constructor(http, apiKey) {
         this.http = http;
         this.apiKey = apiKey;
-        this.accessToken = accessToken;
     }
     /**
      * Retrieves orders with optional filtering and pagination.
@@ -35,7 +34,6 @@ export class OrderAPI {
     async getOrders(params) {
         try {
             const body = {
-                access_token: this.accessToken,
                 orders: params,
             };
             const response = await this.http.post(`orders/${this.apiKey}/`, body);
@@ -43,6 +41,59 @@ export class OrderAPI {
         }
         catch (error) {
             if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+        }
+    }
+    /**
+     * Retrieves customer orders with pagination.
+     *
+     * @param customerId - The customer ID to fetch orders for
+     * @param page - Page number (default: 1)
+     * @param limit - Number of orders per page (default: 10)
+     * @returns Promise resolving to customer orders response with metadata
+     * @throws {UKomiApiException} When the API returns an error
+     * @throws {UKomiException} When a network error occurs
+     *
+     * @example
+     * ```typescript
+     * const response = await sdk.orderAPI().getCustomerOrders('customer-123', 1, 10);
+     * console.log('Orders:', response.orders);
+     * console.log('Total pages:', response.metadata.total_pages);
+     * ```
+     */
+    async getCustomerOrders(customerId, page = 1, limit = 10) {
+        try {
+            const body = {
+                customer_id: customerId,
+                page,
+                limit,
+            };
+            // Use postRaw to handle the actual API response format: { status: "success", orders: [], metadata?: {} }
+            const responseData = await this.http.postRaw(`orders/${this.apiKey}/customer_order`, body);
+            // Handle the actual API response format
+            if (responseData.status === 'success' && responseData.orders) {
+                // Use provided metadata or create default metadata
+                const metadata = responseData.metadata || {
+                    total_orders: responseData.orders.length,
+                    page: page,
+                    // If no metadata provided, assume current page is the only/last page
+                    // This happens when API doesn't return pagination info
+                    total_pages: responseData.orders.length < limit ? page : page + 1,
+                };
+                return {
+                    orders: responseData.orders,
+                    metadata,
+                };
+            }
+            throw new UKomiApiException(500, responseData.status || 'Unexpected response format');
+        }
+        catch (error) {
+            if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            if (error instanceof UKomiException) {
                 throw error;
             }
             throw new UKomiException('Network error', error instanceof Error ? error : undefined);

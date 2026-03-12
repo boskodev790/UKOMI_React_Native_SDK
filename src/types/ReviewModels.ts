@@ -85,10 +85,9 @@ export interface ReviewFilterParams {
 }
 
 /**
- * Review with orders request body
+ * Review with orders request body (review_with_orders_basic endpoint).
  */
 export interface ReviewWithOrdersRequestBody {
-  access_token: string;
   reviews?: ReviewFilterParams;
 }
 
@@ -143,5 +142,86 @@ export interface CustomersReviewSummaryRequest {
  */
 export interface FilteredReviewSummaryRequest {
   filter: ReviewSummaryFilter;
+}
+
+// ========== V1 Review Form & Submit API ==========
+
+/** Product info returned by Get Review Form Fields (v1) */
+export interface ReviewFormFieldsProduct {
+  product_id?: string;
+  product_name?: string;
+  product_image?: string;
+  is_site_review?: boolean;
+}
+
+/** Form config returned by Get Review Form Fields (v1) */
+export interface ReviewFormFieldsConfig {
+  language?: string;
+  submission_text?: string;
+  nickname_text?: string;
+  picture_upload_text?: string;
+  submit_button_text?: string;
+  submit_processing_text?: string;
+  success_message?: string;
+}
+
+/** Labels returned by Get Review Form Fields (v1) */
+export interface ReviewFormFieldsLabels {
+  required?: string;
+  optional?: string;
+  multiple_choice?: string;
+  select_placeholder?: string;
+}
+
+/** Success response data for Get Review Form Fields (v1) */
+export interface ReviewFormFieldsData {
+  product?: ReviewFormFieldsProduct;
+  form_config?: ReviewFormFieldsConfig;
+  fields?: unknown[];
+  labels?: ReviewFormFieldsLabels;
+}
+
+/** Success response for Get Review Form Fields (v1) */
+export interface ReviewFormFieldsResponse {
+  status: string;
+  message?: string;
+  data?: ReviewFormFieldsData;
+}
+
+/** Request body for Submit Review (v1) */
+export interface ReviewSubmitV1Request {
+  product_id: string;
+  score: number;
+  review: string;
+  title?: string;
+  name?: string;
+  email: string;
+  nickname?: string;
+  group?: string;
+  custom_form_ans?: Record<string, string | string[]>;
+  custom_form_ans_other?: Record<string, string>;
+}
+
+/** Success response for Submit Review (v1) */
+export interface ReviewSubmitV1SuccessResponse {
+  status: 'success';
+  message?: string;
+  data?: {
+    verification_email_sent?: boolean;
+    message?: string;
+  };
+}
+
+/** Validation error response for Submit Review (v1) */
+export interface ReviewSubmitV1FieldErrorResponse {
+  status: 'field_error';
+  errors?: Record<string, string>;
+}
+
+/** Error response for Submit Review (v1) */
+export interface ReviewSubmitV1ErrorResponse {
+  status: 'error';
+  code?: string;
+  message?: string;
 }
 

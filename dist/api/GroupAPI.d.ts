@@ -7,8 +7,7 @@ import { GroupProduct } from '../types/GroupModels';
 export declare class GroupAPI {
     private http;
     private apiKey;
-    private accessToken;
-    constructor(http: HttpClient, apiKey: string, accessToken: string);
+    constructor(http: HttpClient, apiKey: string);
     /**
      * Retrieves all product groups with optional date filtering.
      *

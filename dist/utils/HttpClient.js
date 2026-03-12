@@ -2,40 +2,20 @@ import axios from 'axios';
 import { UKomiApiException, UKomiNetworkException } from '../errors/UKomiException';
 /**
  * HTTP client for making API requests to the U-KOMI API.
- * Handles authentication, request/response transformation, and error handling.
+ * Handles request/response transformation and error handling.
  */
 export class HttpClient {
     /**
      * Creates a new HTTP client instance.
      * @param baseUrl - The base URL for the API
-     * @param accessToken - Optional access token for authenticated requests
      */
-    constructor(baseUrl, accessToken) {
+    constructor(baseUrl) {
         this.client = axios.create({
             baseURL: baseUrl,
             timeout: 30000,
             headers: {
                 'Content-Type': 'application/json',
             },
-        });
-        if (accessToken) {
-            this.setAccessToken(accessToken);
-        }
-    }
-    /**
-     * Updates the access token for authenticated requests.
-     * @param accessToken - The access token to use for authentication
-     */
-    setAccessToken(accessToken) {
-        this.client.interceptors.request.clear();
-        this.client.interceptors.request.use((config) => {
-            if (config.params) {
-                config.params.access_token = accessToken;
-            }
-            else {
-                config.params = { access_token: accessToken };
-            }
-            return config;
         });
     }
     /**
@@ -68,6 +48,28 @@ export class HttpClient {
         try {
             const response = await this.client.post(url, data, config);
             return this.handleResponse(response.data);
+        }
+        catch (error) {
+            throw this.handleError(error);
+        }
+    }
+    /**
+     * Makes a POST request and returns the raw response without processing.
+     * Useful for endpoints that return non-standard response formats.
+     * @param url - The endpoint URL (relative to base URL)
+     * @param data - The request payload
+     * @param config - Optional Axios request configuration
+     * @returns Promise resolving to the raw response data
+     * @throws {UKomiApiException} When the API returns an error response
+     * @throws {UKomiNetworkException} When a network error occurs
+     */
+    async postRaw(url, data, config) {
+        try {
+            const response = await this.client.post(url, data, config);
+            if (response.status >= 200 && response.status < 300) {
+                return response.data;
+            }
+            throw new UKomiApiException(response.status, `Request failed with status ${response.status}`);
         }
         catch (error) {
             throw this.handleError(error);

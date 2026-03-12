@@ -4,10 +4,9 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Provides comprehensive methods to retrieve, filter, and analyze reviews.
  */
 export class ReviewAPI {
-    constructor(http, apiKey, accessToken) {
+    constructor(http, apiKey) {
         this.http = http;
         this.apiKey = apiKey;
-        this.accessToken = accessToken;
     }
     /**
      * Retrieves all reviews with extensive filtering and pagination options.
@@ -96,7 +95,7 @@ export class ReviewAPI {
                 if (params.deleted)
                     queryParams.deleted = params.deleted;
             }
-            const response = await this.http.get(`reviews/${this.apiKey}/view`, {
+            const response = await this.http.get(`reviews/${this.apiKey}/view_basic`, {
                 params: queryParams,
             });
             return response;
@@ -188,10 +187,9 @@ export class ReviewAPI {
     async getReviewsWithOrders(params) {
         try {
             const body = {
-                access_token: this.accessToken,
                 reviews: params,
             };
-            const response = await this.http.post(`reviews/${this.apiKey}/review_with_orders`, body);
+            const response = await this.http.post(`reviews/${this.apiKey}/review_with_orders_basic`, body);
             return response.reviews || [];
         }
         catch (error) {
@@ -316,7 +314,7 @@ export class ReviewAPI {
      */
     async getReview(reviewId) {
         try {
-            const response = await this.http.get(`reviews/${this.apiKey}/${reviewId}/review`);
+            const response = await this.http.get(`reviews/${this.apiKey}/${reviewId}/review_basic`);
             if (!response.review || response.review.length === 0) {
                 throw new UKomiApiException(404, 'No review found with the given ID');
             }
@@ -361,8 +359,84 @@ export class ReviewAPI {
                 if (params.starsSorting)
                     queryParams.stars_sorting = params.starsSorting;
             }
-            const response = await this.http.get(`reviews/${this.apiKey}/${productId}/product`, { params: queryParams });
+            const response = await this.http.get(`reviews/${this.apiKey}/${productId}/product_basic`, { params: queryParams });
             return response;
+        }
+        catch (error) {
+            if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+        }
+    }
+    /**
+     * (V1 API) Returns form field configuration, validation rules, product info, and labels
+     * needed to render a review form.
+     *
+     * @param productId - Product identifier
+     * @returns Promise resolving to form fields data (product, form_config, fields, labels)
+     * @throws {UKomiApiException} When the API returns an error
+     * @throws {UKomiException} When a network error occurs
+     *
+     * @example
+     * ```typescript
+     * const formData = await sdk.reviews().getReviewFormFields('product-123');
+     * console.log(formData.form_config?.submit_button_text);
+     * ```
+     */
+    async getReviewFormFields(productId) {
+        try {
+            const response = await this.http.postRaw(`v1/${this.apiKey}/review_form_fields`, { product_id: productId });
+            if (response.status === 'success' && response.data) {
+                return response.data;
+            }
+            throw new UKomiApiException(400, response.message ?? 'Failed to get review form fields');
+        }
+        catch (error) {
+            if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+        }
+    }
+    /**
+     * (V1 API) Validates review data, saves a temp review, and sends a verification email
+     * to the reviewer.
+     *
+     * @param params - Submit review params (product_id, score, review, email, etc.)
+     * @returns Promise resolving to success data (verification_email_sent, message)
+     * @throws {UKomiApiException} On API error (e.g. invalid API key)
+     * @throws {UKomiException} When a network error occurs
+     *
+     * For validation/field errors, check the thrown error; the API returns status "field_error"
+     * with an `errors` object (field name -> error message).
+     *
+     * @example
+     * ```typescript
+     * const result = await sdk.reviews().submitReviewV1({
+     *   product_id: 'product-123',
+     *   score: 5,
+     *   review: 'Great product!',
+     *   title: 'Love it',
+     *   email: 'user@example.com',
+     *   name: 'John',
+     * });
+     * console.log(result.data?.message);
+     * ```
+     */
+    async submitReviewV1(params) {
+        try {
+            const response = await this.http.postRaw(`v1/${this.apiKey}/review_submit`, params);
+            if (response.status === 'success') {
+                return response.data;
+            }
+            if (response.status === 'field_error') {
+                const err = response;
+                const msg = err.errors ? Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join('; ') : 'Validation failed';
+                throw new UKomiApiException(422, msg);
+            }
+            const errResp = response;
+            throw new UKomiApiException(errResp.code ? parseInt(errResp.code, 10) : 500, errResp.message ?? 'Submit review failed');
         }
         catch (error) {
             if (error instanceof UKomiApiException) {
@@ -383,6 +457,65 @@ export class ReviewAPI {
         try {
             const response = await this.http.post(`inline_review_form_token/${this.apiKey}/get`, {});
             return response;
+        }
+        catch (error) {
+            if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+        }
+    }
+    /**
+     * Submits a review for a product.
+     *
+     * @param productId - The product ID to submit review for
+     * @param reviewData - Review submission data
+     * @param reviewData.rating - Star rating (1-5)
+     * @param reviewData.subject - Review title/subject
+     * @param reviewData.content - Review content/body
+     * @param reviewData.email - Reviewer email (required)
+     * @param reviewData.name - Reviewer name (optional)
+     * @param reviewData.nickname - Reviewer nickname (optional)
+     * @param reviewData.customAnswers - Custom question answers (optional)
+     * @returns Promise resolving to the created review
+     * @throws {UKomiApiException} When the API returns an error
+     * @throws {UKomiException} When a network error occurs
+     *
+     * @example
+     * ```typescript
+     * const review = await sdk.reviews().submitReview('product-123', {
+     *   rating: 5,
+     *   subject: 'Great product!',
+     *   content: 'I really enjoyed this product...',
+     *   email: 'user@example.com',
+     *   name: 'John Doe',
+     *   nickname: 'Johnny'
+     * });
+     * ```
+     */
+    async submitReview(productId, reviewData) {
+        try {
+            const body = {
+                product_id: productId,
+                score: reviewData.rating.toString(),
+                title: reviewData.subject,
+                content: reviewData.content,
+                email: reviewData.email,
+            };
+            if (reviewData.name) {
+                body.name = reviewData.name;
+            }
+            if (reviewData.nickname) {
+                body.nickname = reviewData.nickname;
+            }
+            if (reviewData.customAnswers && Object.keys(reviewData.customAnswers).length > 0) {
+                body.custom_answers = reviewData.customAnswers;
+            }
+            const response = await this.http.post(`reviews/${this.apiKey}/post`, body);
+            if (!response.review || response.review.length === 0) {
+                throw new UKomiApiException(400, 'Failed to submit review');
+            }
+            return response.review[0];
         }
         catch (error) {
             if (error instanceof UKomiApiException) {

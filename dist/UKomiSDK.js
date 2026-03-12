@@ -1,5 +1,4 @@
 import { HttpClient } from './utils/HttpClient';
-import { UKomiAuthException, UKomiException } from './errors/UKomiException';
 import { ApiConfig } from './config/ApiConfig';
 import { AccountAPI } from './api/AccountAPI';
 import { ReviewAPI } from './api/ReviewAPI';
@@ -11,153 +10,69 @@ import { QuestionAPI } from './api/QuestionAPI';
  * Main U-KOMI SDK client for React Native applications.
  *
  * Provides a type-safe interface to interact with all U-KOMI API endpoints.
+ * APIs do not require access_token; use the API key only.
  *
  * @example
  * ```typescript
  * import { UKomiSDK } from '@ukomi/react-native-sdk';
  *
  * const sdk = new UKomiSDK({
- *   apiKey: 'your-api-key',
- *   apiSecret: 'your-api-secret'
+ *   apiKey: 'your-api-key'
  * });
  *
- * await sdk.authenticate();
  * const reviews = await sdk.reviews().getAllReviews();
  * ```
  */
 export class UKomiSDK {
     /**
      * Creates a new UKomiSDK instance.
-     * @param config - SDK configuration with API credentials
+     * @param config - SDK configuration with API key (no access token or secret required)
      */
     constructor(config) {
-        this.accessToken = null;
         this.apiKey = config.apiKey;
-        this.apiSecret = config.apiSecret;
         const baseUrl = config.baseUrl ?? ApiConfig.BASE_URL;
         this.http = new HttpClient(baseUrl);
     }
     /**
-     * Authenticates with the U-KOMI API using the provided credentials.
-     * Stores the access token for subsequent API calls.
-     *
-     * @returns Promise resolving to the access token
-     * @throws {UKomiAuthException} When authentication fails
-     *
-     * @example
-     * ```typescript
-     * try {
-     *   const token = await sdk.authenticate();
-     *   console.log('Authenticated successfully');
-     * } catch (error) {
-     *   console.error('Authentication failed:', error.message);
-     * }
-     * ```
-     */
-    async authenticate() {
-        try {
-            const response = await this.http.postFormUrlEncoded('auth/access_token', {
-                api_key: this.apiKey,
-                api_secret: this.apiSecret,
-            });
-            this.setAccessToken(response.access_token);
-            return response.access_token;
-        }
-        catch (error) {
-            if (error instanceof UKomiException) {
-                throw new UKomiAuthException(`Authentication failed: ${error.message}`, error);
-            }
-            throw new UKomiAuthException('Authentication failed: Network error', error instanceof Error ? error : undefined);
-        }
-    }
-    /**
-     * Manually sets an access token if you already have one.
-     * Useful when you want to reuse a previously obtained token.
-     *
-     * @param token - The access token to use
-     */
-    setAccessToken(token) {
-        this.accessToken = token;
-        this.http.setAccessToken(token);
-    }
-    /**
-     * Gets the current access token.
-     * @returns The current access token, or null if not authenticated
-     */
-    getAccessToken() {
-        return this.accessToken;
-    }
-    /**
-     * Checks if the SDK is currently authenticated.
-     * @returns True if authenticated, false otherwise
-     */
-    isAuthenticated() {
-        return this.accessToken !== null;
-    }
-    /**
      * Gets the Account API client for account-related operations.
      * @returns AccountAPI instance
-     * @throws {UKomiAuthException} If not authenticated
      */
     account() {
-        if (!this.accessToken) {
-            throw new UKomiAuthException('Not authenticated. Call authenticate() first.');
-        }
-        return new AccountAPI(this.http, this.apiKey, this.accessToken);
+        return new AccountAPI(this.http, this.apiKey);
     }
     /**
      * Gets the Review API client for review-related operations.
      * @returns ReviewAPI instance
-     * @throws {UKomiAuthException} If not authenticated
      */
     reviews() {
-        if (!this.accessToken) {
-            throw new UKomiAuthException('Not authenticated. Call authenticate() first.');
-        }
-        return new ReviewAPI(this.http, this.apiKey, this.accessToken);
+        return new ReviewAPI(this.http, this.apiKey);
     }
     /**
      * Gets the Product API client for product-related operations.
      * @returns ProductAPI instance
-     * @throws {UKomiAuthException} If not authenticated
      */
     productAPI() {
-        if (!this.accessToken) {
-            throw new UKomiAuthException('Not authenticated. Call authenticate() first.');
-        }
-        return new ProductAPI(this.http, this.apiKey, this.accessToken);
+        return new ProductAPI(this.http, this.apiKey);
     }
     /**
      * Gets the Order API client for order-related operations.
      * @returns OrderAPI instance
-     * @throws {UKomiAuthException} If not authenticated
      */
     orderAPI() {
-        if (!this.accessToken) {
-            throw new UKomiAuthException('Not authenticated. Call authenticate() first.');
-        }
-        return new OrderAPI(this.http, this.apiKey, this.accessToken);
+        return new OrderAPI(this.http, this.apiKey);
     }
     /**
      * Gets the Group API client for group-related operations.
      * @returns GroupAPI instance
-     * @throws {UKomiAuthException} If not authenticated
      */
     groups() {
-        if (!this.accessToken) {
-            throw new UKomiAuthException('Not authenticated. Call authenticate() first.');
-        }
-        return new GroupAPI(this.http, this.apiKey, this.accessToken);
+        return new GroupAPI(this.http, this.apiKey);
     }
     /**
      * Gets the Question API client for question and answer operations.
      * @returns QuestionAPI instance
-     * @throws {UKomiAuthException} If not authenticated
      */
     questions() {
-        if (!this.accessToken) {
-            throw new UKomiAuthException('Not authenticated. Call authenticate() first.');
-        }
-        return new QuestionAPI(this.http, this.apiKey, this.accessToken);
+        return new QuestionAPI(this.http, this.apiKey);
     }
 }

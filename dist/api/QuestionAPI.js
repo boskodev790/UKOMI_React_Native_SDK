@@ -4,10 +4,9 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Provides methods to retrieve questions, answers, and question statistics.
  */
 export class QuestionAPI {
-    constructor(http, apiKey, accessToken) {
+    constructor(http, apiKey) {
         this.http = http;
         this.apiKey = apiKey;
-        this.accessToken = accessToken;
     }
     /**
      * Retrieves all questions with optional filtering and pagination.
@@ -52,7 +51,7 @@ export class QuestionAPI {
             if (params?.published) {
                 queryParams.published = params.published;
             }
-            const response = await this.http.get(`questions/${this.apiKey}`, {
+            const response = await this.http.get(`questions/${this.apiKey}/all_questions_basic`, {
                 params: queryParams,
             });
             return response;
@@ -80,13 +79,14 @@ export class QuestionAPI {
      */
     async getProductQuestions(productId) {
         try {
-            const response = await this.http.get(`questions/${this.apiKey}/${productId}`);
-            if (!response.questions?.questions) {
+            const response = await this.http.get(`questions/${this.apiKey}/${productId}/questions_basic`);
+            if (!response.questions) {
                 return [];
             }
-            return response.questions.questions;
+            return response.questions;
         }
         catch (error) {
+            console.log(error);
             if (error instanceof UKomiApiException) {
                 throw error;
             }
@@ -110,6 +110,52 @@ export class QuestionAPI {
     async getProductQuestionCount(productId) {
         try {
             const response = await this.http.get(`questions/${this.apiKey}/${productId}/count`);
+            return response;
+        }
+        catch (error) {
+            if (error instanceof UKomiApiException) {
+                throw error;
+            }
+            throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+        }
+    }
+    /**
+     * Submits a question for a product.
+     *
+     * @param productId - The product ID to submit question for
+     * @param questionData - Question submission data
+     * @param questionData.question - The question text (required)
+     * @param questionData.email - Questioner email (required)
+     * @param questionData.name - Questioner name (optional)
+     * @param questionData.nickname - Questioner nickname (optional)
+     * @returns Promise resolving to the created question
+     * @throws {UKomiApiException} When the API returns an error
+     * @throws {UKomiException} When a network error occurs
+     *
+     * @example
+     * ```typescript
+     * const question = await sdk.questions().submitQuestion('product-123', {
+     *   question: 'Is this product suitable for outdoor use?',
+     *   email: 'user@example.com',
+     *   name: 'John Doe',
+     *   nickname: 'Johnny'
+     * });
+     * ```
+     */
+    async submitQuestion(productId, questionData) {
+        try {
+            const body = {
+                product_id: productId,
+                question: questionData.question,
+                email: questionData.email,
+            };
+            if (questionData.name) {
+                body.name = questionData.name;
+            }
+            if (questionData.nickname) {
+                body.nickname = questionData.nickname;
+            }
+            const response = await this.http.post(`questions/${this.apiKey}/post`, body);
             return response;
         }
         catch (error) {

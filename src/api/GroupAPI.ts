@@ -14,8 +14,7 @@ import {
 export class GroupAPI {
   constructor(
     private http: HttpClient,
-    private apiKey: string,
-    private accessToken: string
+    private apiKey: string
   ) {}
 
   /**
@@ -49,7 +48,6 @@ export class GroupAPI {
           : undefined;
 
       const request: GetAllGroupsRequestBody = {
-        access_token: this.accessToken,
         group: groupParams,
       };
 
@@ -83,7 +81,6 @@ export class GroupAPI {
   async getGroupProducts(groupName: string): Promise<GroupProduct[]> {
     try {
       const request: ViewGroupProductsRequest = {
-        access_token: this.accessToken,
         group_name: groupName,
       };
 

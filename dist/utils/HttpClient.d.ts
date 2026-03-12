@@ -1,21 +1,15 @@
 import { AxiosRequestConfig } from 'axios';
 /**
  * HTTP client for making API requests to the U-KOMI API.
- * Handles authentication, request/response transformation, and error handling.
+ * Handles request/response transformation and error handling.
  */
 export declare class HttpClient {
     private client;
     /**
      * Creates a new HTTP client instance.
      * @param baseUrl - The base URL for the API
-     * @param accessToken - Optional access token for authenticated requests
      */
-    constructor(baseUrl: string, accessToken?: string);
-    /**
-     * Updates the access token for authenticated requests.
-     * @param accessToken - The access token to use for authentication
-     */
-    setAccessToken(accessToken: string): void;
+    constructor(baseUrl: string);
     /**
      * Makes a GET request to the specified endpoint.
      * @param url - The endpoint URL (relative to base URL)
@@ -35,6 +29,17 @@ export declare class HttpClient {
      * @throws {UKomiNetworkException} When a network error occurs
      */
     post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
+    /**
+     * Makes a POST request and returns the raw response without processing.
+     * Useful for endpoints that return non-standard response formats.
+     * @param url - The endpoint URL (relative to base URL)
+     * @param data - The request payload
+     * @param config - Optional Axios request configuration
+     * @returns Promise resolving to the raw response data
+     * @throws {UKomiApiException} When the API returns an error response
+     * @throws {UKomiNetworkException} When a network error occurs
+     */
+    postRaw<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>;
     /**
      * Makes a POST request with multipart/form-data payload.
      * @param url - The endpoint URL (relative to base URL)

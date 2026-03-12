@@ -17,7 +17,7 @@ import { Question } from '../types/QuestionModels';
  * Props for the ProductQAList component
  */
 export interface ProductQAListProps {
-    /** The UKomiSDK instance (must be authenticated) */
+    /** The UKomiSDK instance */
     sdk: UKomiSDK;
     /** The product ID to fetch questions for */
     productId: string;
@@ -124,12 +124,6 @@ export const ProductQAList: React.FC<ProductQAListProps> = ({
     const fetchQuestions = useCallback(async () => {
         if (!sdk || !productId) {
             setError('SDK or productId is missing');
-            setLoading(false);
-            return;
-        }
-
-        if (!sdk.isAuthenticated()) {
-            setError('SDK is not authenticated');
             setLoading(false);
             return;
         }

@@ -16,8 +16,7 @@ import {
 export class ProductAPI {
   constructor(
     private http: HttpClient,
-    private apiKey: string,
-    private accessToken: string
+    private apiKey: string
   ) {}
 
   /**
@@ -42,12 +41,11 @@ export class ProductAPI {
   async getProducts(params?: ProductRequestParams): Promise<Product[]> {
     try {
       const body: ProductRequestBody = {
-        access_token: this.accessToken,
         product: params,
       };
 
       const response = await this.http.post<ProductsResponse>(
-        `products/${this.apiKey}/view`,
+        `products/${this.apiKey}/view_basic`,
         body
       );
       return response.products;

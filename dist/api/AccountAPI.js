@@ -4,10 +4,9 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Provides methods to access account details and settings.
  */
 export class AccountAPI {
-    constructor(http, apiKey, accessToken) {
+    constructor(http, apiKey) {
         this.http = http;
         this.apiKey = apiKey;
-        this.accessToken = accessToken;
     }
     /**
      * Retrieves basic account information including name, URL, and framework.
@@ -24,9 +23,7 @@ export class AccountAPI {
      */
     async getAccountBasic() {
         try {
-            const account = await this.http.postFormUrlEncoded(`account/${this.apiKey}/view_basic`, {
-                access_token: this.accessToken,
-            });
+            const account = await this.http.postFormUrlEncoded(`account/${this.apiKey}/view_basic`, {});
             return account;
         }
         catch (error) {

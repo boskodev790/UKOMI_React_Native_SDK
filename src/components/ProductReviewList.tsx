@@ -16,7 +16,7 @@ import { Review } from '../types/ReviewModels';
  * Props for the ProductReviewList component
  */
 export interface ProductReviewListProps {
-  /** The UKomiSDK instance (must be authenticated) */
+  /** The UKomiSDK instance */
   sdk: UKomiSDK;
   /** The product ID to fetch reviews for */
   productId: string;
@@ -127,12 +127,6 @@ export const ProductReviewList: React.FC<ProductReviewListProps> = ({
   const fetchReviews = useCallback(async (page: number, sort: SortOption, order: SortOrder) => {
     if (!sdk || !productId) {
       setError('SDK or productId is missing');
-      setLoading(false);
-      return;
-    }
-
-    if (!sdk.isAuthenticated()) {
-      setError('SDK is not authenticated');
       setLoading(false);
       return;
     }

@@ -14,8 +14,7 @@ import {
 export class QuestionAPI {
   constructor(
     private http: HttpClient,
-    private apiKey: string,
-    private accessToken: string
+    private apiKey: string
   ) {}
 
   /**
@@ -71,7 +70,7 @@ export class QuestionAPI {
         queryParams.published = params.published;
       }
 
-      const response = await this.http.get<QuestionsResponse>(`questions/${this.apiKey}`, {
+      const response = await this.http.get<QuestionsResponse>(`questions/${this.apiKey}/all_questions_basic`, {
         params: queryParams,
       });
       return response;
@@ -100,7 +99,7 @@ export class QuestionAPI {
   async getProductQuestions(productId: string): Promise<Question[]> {
     try {
       const response = await this.http.get<ProductQuestionsResponse>(
-        `questions/${this.apiKey}/${productId}`
+        `questions/${this.apiKey}/${productId}/questions_basic`
       );
 
       if (!response.questions) {
@@ -109,6 +108,7 @@ export class QuestionAPI {
 
       return response.questions;
     } catch (error) {
+      console.log(error);
       if (error instanceof UKomiApiException) {
         throw error;
       }
@@ -178,7 +178,6 @@ export class QuestionAPI {
   ): Promise<Question> {
     try {
       const body: Record<string, any> = {
-        access_token: this.accessToken,
         product_id: productId,
         question: questionData.question,
         email: questionData.email,

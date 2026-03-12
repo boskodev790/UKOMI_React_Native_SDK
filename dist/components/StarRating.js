@@ -13,8 +13,7 @@ import Svg, { Path } from 'react-native-svg';
  * import { StarRating } from '@ukomi/react-native-sdk';
  * import { UKomiSDK } from '@ukomi/react-native-sdk';
  *
- * const sdk = new UKomiSDK({ apiKey: '...', apiSecret: '...' });
- * await sdk.authenticate();
+ * const sdk = new UKomiSDK({ apiKey: '...' });
  *
  * <StarRating sdk={sdk} productId="product-123" />
  * ```
@@ -24,15 +23,11 @@ export const StarRating = ({ sdk, productId, starSize = 16, containerStyle, coun
     const [reviewCount, setReviewCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const MAX_REVIEWS = 100000;
     useEffect(() => {
         const fetchReviews = async () => {
             if (!sdk || !productId) {
                 setError('SDK or productId is missing');
-                setLoading(false);
-                return;
-            }
-            if (!sdk.isAuthenticated()) {
-                setError('SDK is not authenticated');
                 setLoading(false);
                 return;
             }
@@ -41,7 +36,8 @@ export const StarRating = ({ sdk, productId, starSize = 16, containerStyle, coun
                 setError(null);
                 // Fetch reviews for the product
                 const response = await sdk.reviews().getProductReviews(productId, {
-                    count: '1000', // Get all reviews to calculate accurate average
+                    count: MAX_REVIEWS,
+                    page: 1,
                 });
                 const reviews = response.review || [];
                 if (reviews.length === 0) {
@@ -104,12 +100,17 @@ export const StarRating = ({ sdk, productId, starSize = 16, containerStyle, coun
         // If loading but showLoading is false, show empty state
         return (_jsx(View, { style: [styles.container, containerStyle], children: _jsx(Text, { style: styles.errorText, children: "\u2014" }) }));
     }
-    return (_jsxs(View, { style: [styles.container, containerStyle], children: [renderStars(), reviewCount > 0 && (_jsx(Text, { style: [styles.count, countStyle, styles.countMargin], children: formatReviewCount(reviewCount) }))] }));
+    return (_jsxs(View, { style: [styles.container, containerStyle], children: [_jsx(Text, { style: styles.starRatingText, children: averageRating.toFixed(2) }), renderStars(), reviewCount > 0 && (_jsx(Text, { style: [styles.count, countStyle, styles.countMargin], children: formatReviewCount(reviewCount) }))] }));
 };
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    starRatingText: {
+        fontSize: 16,
+        color: '#666',
+        marginRight: 8,
     },
     starsContainer: {
         flexDirection: 'row',

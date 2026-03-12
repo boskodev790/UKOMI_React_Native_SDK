@@ -1,5 +1,5 @@
 import { HttpClient } from '../utils/HttpClient';
-import { Order, OrderRequestParams } from '../types/OrderModels';
+import { Order, OrderRequestParams, CustomerOrdersResponse } from '../types/OrderModels';
 /**
  * Order API client for retrieving order information.
  * Provides methods to access order data and associated customer information.
@@ -7,8 +7,7 @@ import { Order, OrderRequestParams } from '../types/OrderModels';
 export declare class OrderAPI {
     private http;
     private apiKey;
-    private accessToken;
-    constructor(http: HttpClient, apiKey: string, accessToken: string);
+    constructor(http: HttpClient, apiKey: string);
     /**
      * Retrieves orders with optional filtering and pagination.
      *
@@ -33,4 +32,22 @@ export declare class OrderAPI {
      * ```
      */
     getOrders(params?: OrderRequestParams): Promise<Order[]>;
+    /**
+     * Retrieves customer orders with pagination.
+     *
+     * @param customerId - The customer ID to fetch orders for
+     * @param page - Page number (default: 1)
+     * @param limit - Number of orders per page (default: 10)
+     * @returns Promise resolving to customer orders response with metadata
+     * @throws {UKomiApiException} When the API returns an error
+     * @throws {UKomiException} When a network error occurs
+     *
+     * @example
+     * ```typescript
+     * const response = await sdk.orderAPI().getCustomerOrders('customer-123', 1, 10);
+     * console.log('Orders:', response.orders);
+     * console.log('Total pages:', response.metadata.total_pages);
+     * ```
+     */
+    getCustomerOrders(customerId: string, page?: number, limit?: number): Promise<CustomerOrdersResponse>;
 }

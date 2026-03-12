@@ -50,7 +50,6 @@ export interface OrderRequestParams {
  * Order request body
  */
 export interface OrderRequestBody {
-  access_token: string;
   orders?: OrderRequestParams;
 }
 
@@ -79,7 +78,6 @@ export interface CustomerOrder {
  * Customer orders request body
  */
 export interface CustomerOrdersRequestBody {
-  access_token: string;
   customer_id: string;
   page: number;
   limit: number;

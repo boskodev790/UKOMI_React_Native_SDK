@@ -7,8 +7,7 @@ import { Product, ProductReviewSummary, ProductReviewMeta, ProductRequestParams 
 export declare class ProductAPI {
     private http;
     private apiKey;
-    private accessToken;
-    constructor(http: HttpClient, apiKey: string, accessToken: string);
+    constructor(http: HttpClient, apiKey: string);
     /**
      * Retrieves products with optional filtering.
      *

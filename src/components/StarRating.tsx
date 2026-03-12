@@ -8,7 +8,7 @@ import { Review } from '../types/ReviewModels';
  * Props for the StarRating component
  */
 export interface StarRatingProps {
-  /** The UKomiSDK instance (must be authenticated) */
+  /** The UKomiSDK instance */
   sdk: UKomiSDK;
   /** The product ID to fetch reviews for */
   productId: string;
@@ -35,9 +35,8 @@ export interface StarRatingProps {
  * import { StarRating } from '@ukomi/react-native-sdk';
  * import { UKomiSDK } from '@ukomi/react-native-sdk';
  * 
- * const sdk = new UKomiSDK({ apiKey: '...', apiSecret: '...' });
- * await sdk.authenticate();
- * 
+ * const sdk = new UKomiSDK({ apiKey: '...' });
+ *
  * <StarRating sdk={sdk} productId="product-123" />
  * ```
  */
@@ -60,12 +59,6 @@ export const StarRating: React.FC<StarRatingProps> = ({
     const fetchReviews = async () => {
       if (!sdk || !productId) {
         setError('SDK or productId is missing');
-        setLoading(false);
-        return;
-      }
-
-      if (!sdk.isAuthenticated()) {
-        setError('SDK is not authenticated');
         setLoading(false);
         return;
       }

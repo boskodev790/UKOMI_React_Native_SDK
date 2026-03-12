@@ -15,7 +15,7 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Props for the AskQuestionForm component
  */
 export interface AskQuestionFormProps {
-  /** The UKomiSDK instance (must be authenticated) */
+  /** The UKomiSDK instance */
   sdk: UKomiSDK;
   /** The product ID to submit question for */
   productId: string;

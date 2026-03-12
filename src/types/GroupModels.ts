@@ -7,10 +7,9 @@ export interface GroupFilterParams {
 }
 
 /**
- * Retrieve all groups request body
+ * Retrieve all groups request body.
  */
 export interface GetAllGroupsRequestBody {
-  access_token: string;
   group?: GroupFilterParams;
 }
 
@@ -24,10 +23,9 @@ export interface GroupProduct {
 }
 
 /**
- * View group products request
+ * View group products request.
  */
 export interface ViewGroupProductsRequest {
-  access_token: string;
   group_name: string;
 }
 

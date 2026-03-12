@@ -4,10 +4,9 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Provides methods to retrieve products, review summaries, and metadata.
  */
 export class ProductAPI {
-    constructor(http, apiKey, accessToken) {
+    constructor(http, apiKey) {
         this.http = http;
         this.apiKey = apiKey;
-        this.accessToken = accessToken;
     }
     /**
      * Retrieves products with optional filtering.
@@ -31,10 +30,9 @@ export class ProductAPI {
     async getProducts(params) {
         try {
             const body = {
-                access_token: this.accessToken,
                 product: params,
             };
-            const response = await this.http.post(`products/${this.apiKey}/view`, body);
+            const response = await this.http.post(`products/${this.apiKey}/view_basic`, body);
             return response.products;
         }
         catch (error) {

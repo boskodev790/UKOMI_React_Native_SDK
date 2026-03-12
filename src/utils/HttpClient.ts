@@ -4,7 +4,7 @@ import { ApiResponse } from '../types/ApiResponse';
 
 /**
  * HTTP client for making API requests to the U-KOMI API.
- * Handles authentication, request/response transformation, and error handling.
+ * Handles request/response transformation and error handling.
  */
 export class HttpClient {
   private client: AxiosInstance;
@@ -12,35 +12,14 @@ export class HttpClient {
   /**
    * Creates a new HTTP client instance.
    * @param baseUrl - The base URL for the API
-   * @param accessToken - Optional access token for authenticated requests
    */
-  constructor(baseUrl: string, accessToken?: string) {
+  constructor(baseUrl: string) {
     this.client = axios.create({
       baseURL: baseUrl,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
-    });
-
-    if (accessToken) {
-      this.setAccessToken(accessToken);
-    }
-  }
-
-  /**
-   * Updates the access token for authenticated requests.
-   * @param accessToken - The access token to use for authentication
-   */
-  setAccessToken(accessToken: string): void {
-    this.client.interceptors.request.clear();
-    this.client.interceptors.request.use((config) => {
-      if (config.params) {
-        config.params.access_token = accessToken;
-      } else {
-        config.params = { access_token: accessToken };
-      }
-      return config;
     });
   }
 

@@ -12,6 +12,12 @@ import {
   CustomersReviewSummaryRequest,
   FilteredReviewSummaryRequest,
   ReviewWithOrdersRequestBody,
+  ReviewFormFieldsData,
+  ReviewFormFieldsResponse,
+  ReviewSubmitV1Request,
+  ReviewSubmitV1SuccessResponse,
+  ReviewSubmitV1FieldErrorResponse,
+  ReviewSubmitV1ErrorResponse,
 } from '../types/ReviewModels';
 
 /**
@@ -21,8 +27,7 @@ import {
 export class ReviewAPI {
   constructor(
     private http: HttpClient,
-    private apiKey: string,
-    private accessToken: string
+    private apiKey: string
   ) {}
 
   /**
@@ -114,7 +119,7 @@ export class ReviewAPI {
         if (params.deleted) queryParams.deleted = params.deleted;
       }
 
-      const response = await this.http.get<ReviewResponse>(`reviews/${this.apiKey}/view`, {
+      const response = await this.http.get<ReviewResponse>(`reviews/${this.apiKey}/view_basic`, {
         params: queryParams,
       });
       return response;
@@ -208,12 +213,11 @@ export class ReviewAPI {
   async getReviewsWithOrders(params?: ReviewFilterParams): Promise<ReviewWithOrders[]> {
     try {
       const body: ReviewWithOrdersRequestBody = {
-        access_token: this.accessToken,
         reviews: params,
       };
 
       const response = await this.http.post<{ reviews?: ReviewWithOrders[] }>(
-        `reviews/${this.apiKey}/review_with_orders`,
+        `reviews/${this.apiKey}/review_with_orders_basic`,
         body
       );
       return response.reviews || [];
@@ -370,7 +374,7 @@ export class ReviewAPI {
   async getReview(reviewId: string): Promise<Review> {
     try {
       const response = await this.http.get<ReviewResponse>(
-        `reviews/${this.apiKey}/${reviewId}/review`
+        `reviews/${this.apiKey}/${reviewId}/review_basic`
       );
 
       if (!response.review || response.review.length === 0) {
@@ -424,10 +428,100 @@ export class ReviewAPI {
       }
 
       const response = await this.http.get<ReviewResponse>(
-        `reviews/${this.apiKey}/${productId}/product`,
+        `reviews/${this.apiKey}/${productId}/product_basic`,
         { params: queryParams }
       );
       return response;
+    } catch (error) {
+      if (error instanceof UKomiApiException) {
+        throw error;
+      }
+      throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * (V1 API) Returns form field configuration, validation rules, product info, and labels
+   * needed to render a review form.
+   *
+   * @param productId - Product identifier
+   * @returns Promise resolving to form fields data (product, form_config, fields, labels)
+   * @throws {UKomiApiException} When the API returns an error
+   * @throws {UKomiException} When a network error occurs
+   *
+   * @example
+   * ```typescript
+   * const formData = await sdk.reviews().getReviewFormFields('product-123');
+   * console.log(formData.form_config?.submit_button_text);
+   * ```
+   */
+  async getReviewFormFields(productId: string): Promise<ReviewFormFieldsData> {
+    try {
+      const response = await this.http.postRaw<ReviewFormFieldsResponse>(
+        `v1/${this.apiKey}/review_form_fields`,
+        { product_id: productId }
+      );
+      if (response.status === 'success' && response.data) {
+        return response.data;
+      }
+      throw new UKomiApiException(
+        400,
+        (response as { message?: string }).message ?? 'Failed to get review form fields'
+      );
+    } catch (error) {
+      if (error instanceof UKomiApiException) {
+        throw error;
+      }
+      throw new UKomiException('Network error', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * (V1 API) Validates review data, saves a temp review, and sends a verification email
+   * to the reviewer.
+   *
+   * @param params - Submit review params (product_id, score, review, email, etc.)
+   * @returns Promise resolving to success data (verification_email_sent, message)
+   * @throws {UKomiApiException} On API error (e.g. invalid API key)
+   * @throws {UKomiException} When a network error occurs
+   *
+   * For validation/field errors, check the thrown error; the API returns status "field_error"
+   * with an `errors` object (field name -> error message).
+   *
+   * @example
+   * ```typescript
+   * const result = await sdk.reviews().submitReviewV1({
+   *   product_id: 'product-123',
+   *   score: 5,
+   *   review: 'Great product!',
+   *   title: 'Love it',
+   *   email: 'user@example.com',
+   *   name: 'John',
+   * });
+   * console.log(result.data?.message);
+   * ```
+   */
+  async submitReviewV1(
+    params: ReviewSubmitV1Request
+  ): Promise<ReviewSubmitV1SuccessResponse['data']> {
+    try {
+      const response = await this.http.postRaw<
+        ReviewSubmitV1SuccessResponse | ReviewSubmitV1FieldErrorResponse | ReviewSubmitV1ErrorResponse
+      >(`v1/${this.apiKey}/review_submit`, params);
+
+      if (response.status === 'success') {
+        return (response as ReviewSubmitV1SuccessResponse).data;
+      }
+      if (response.status === 'field_error') {
+        const err = response as ReviewSubmitV1FieldErrorResponse;
+        const msg = err.errors ? Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join('; ') : 'Validation failed';
+        throw new UKomiApiException(422, msg);
+      }
+      const errResp = response as ReviewSubmitV1ErrorResponse;
+      throw new UKomiApiException(
+        errResp.code ? parseInt(errResp.code, 10) : 500,
+        errResp.message ?? 'Submit review failed'
+      );
     } catch (error) {
       if (error instanceof UKomiApiException) {
         throw error;
@@ -501,7 +595,6 @@ export class ReviewAPI {
   ): Promise<Review> {
     try {
       const body: Record<string, any> = {
-        access_token: this.accessToken,
         product_id: productId,
         score: reviewData.rating.toString(),
         title: reviewData.subject,

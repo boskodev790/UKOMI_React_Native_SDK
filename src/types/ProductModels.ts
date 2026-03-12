@@ -59,10 +59,9 @@ export interface ProductRequestParams {
 }
 
 /**
- * Product request body
+ * Product request body (view_basic endpoint).
  */
 export interface ProductRequestBody {
-  access_token: string;
   product?: ProductRequestParams;
 }
 

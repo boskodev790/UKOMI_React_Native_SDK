@@ -4,10 +4,9 @@ import { UKomiApiException, UKomiException } from '../errors/UKomiException';
  * Provides methods to retrieve groups and their associated products.
  */
 export class GroupAPI {
-    constructor(http, apiKey, accessToken) {
+    constructor(http, apiKey) {
         this.http = http;
         this.apiKey = apiKey;
-        this.accessToken = accessToken;
     }
     /**
      * Retrieves all product groups with optional date filtering.
@@ -35,7 +34,6 @@ export class GroupAPI {
                 }
                 : undefined;
             const request = {
-                access_token: this.accessToken,
                 group: groupParams,
             };
             const response = await this.http.post(`groups/${this.apiKey}/`, request);
@@ -65,7 +63,6 @@ export class GroupAPI {
     async getGroupProducts(groupName) {
         try {
             const request = {
-                access_token: this.accessToken,
                 group_name: groupName,
             };
             const response = await this.http.post(`groups/${this.apiKey}/view`, request);

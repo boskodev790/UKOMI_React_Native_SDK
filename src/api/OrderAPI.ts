@@ -9,13 +9,12 @@ import { Order, OrderRequestParams, OrderRequestBody, OrdersResponse, CustomerOr
 export class OrderAPI {
   constructor(
     private http: HttpClient,
-    private apiKey: string,
-    private accessToken: string
+    private apiKey: string
   ) {}
 
   /**
    * Retrieves orders with optional filtering and pagination.
-   * 
+   *
    * @param params - Optional query parameters for filtering
    * @param params.from_id - Filter orders from this order ID
    * @param params.from_date - Filter orders from this date (YYYY-MM-DD format)
@@ -26,7 +25,7 @@ export class OrderAPI {
    * @returns Promise resolving to an array of orders
    * @throws {UKomiApiException} When the API returns an error
    * @throws {UKomiException} When a network error occurs
-   * 
+   *
    * @example
    * ```typescript
    * const orders = await sdk.orderAPI().getOrders({
@@ -39,7 +38,6 @@ export class OrderAPI {
   async getOrders(params?: OrderRequestParams): Promise<Order[]> {
     try {
       const body: OrderRequestBody = {
-        access_token: this.accessToken,
         orders: params,
       };
 
@@ -77,7 +75,6 @@ export class OrderAPI {
   ): Promise<CustomerOrdersResponse> {
     try {
       const body: CustomerOrdersRequestBody = {
-        access_token: this.accessToken,
         customer_id: customerId,
         page,
         limit,

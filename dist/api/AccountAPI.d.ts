@@ -7,8 +7,7 @@ import { Account } from '../types/AccountModels';
 export declare class AccountAPI {
     private http;
     private apiKey;
-    private accessToken;
-    constructor(http: HttpClient, apiKey: string, accessToken: string);
+    constructor(http: HttpClient, apiKey: string);
     /**
      * Retrieves basic account information including name, URL, and framework.
      *

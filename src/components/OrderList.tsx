@@ -20,7 +20,7 @@ import { WriteReviewForm, WriteReviewFormProps } from './WriteReviewForm';
  * Props for the OrderList component
  */
 export interface OrderListProps {
-  /** The UKomiSDK instance (must be authenticated) */
+  /** The UKomiSDK instance */
   sdk: UKomiSDK;
   /** The customer ID to fetch orders for */
   customerId: string;

@@ -9,17 +9,16 @@ import { Account } from '../types/AccountModels';
 export class AccountAPI {
   constructor(
     private http: HttpClient,
-    private apiKey: string,
-    private accessToken: string
+    private apiKey: string
   ) {}
 
   /**
    * Retrieves basic account information including name, URL, and framework.
-   * 
+   *
    * @returns Promise resolving to account information
    * @throws {UKomiApiException} When the API returns an error
    * @throws {UKomiException} When a network error occurs
-   * 
+   *
    * @example
    * ```typescript
    * const account = await sdk.account().getAccountBasic();
@@ -30,9 +29,7 @@ export class AccountAPI {
     try {
       const account = await this.http.postFormUrlEncoded<Account>(
         `account/${this.apiKey}/view_basic`,
-        {
-          access_token: this.accessToken,
-        }
+        {}
       );
       return account;
     } catch (error) {

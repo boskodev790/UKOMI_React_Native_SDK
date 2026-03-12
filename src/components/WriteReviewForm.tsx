@@ -25,7 +25,7 @@ interface InternalQuestion {
  * Props for the WriteReviewForm component
  */
 export interface WriteReviewFormProps {
-  /** The UKomiSDK instance (must be authenticated) */
+  /** The UKomiSDK instance */
   sdk: UKomiSDK;
   /** The product ID to submit review for */
   productId: string;
