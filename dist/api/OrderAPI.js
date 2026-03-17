@@ -71,7 +71,7 @@ export class OrderAPI {
                 limit,
             };
             // Use postRaw to handle the actual API response format: { status: "success", orders: [], metadata?: {} }
-            const responseData = await this.http.postRaw(`orders/${this.apiKey}/customer_order`, body);
+            const responseData = await this.http.postRaw(`orders/${this.apiKey}/customer_order_basic`, body);
             // Handle the actual API response format
             if (responseData.status === 'success' && responseData.orders) {
                 // Use provided metadata or create default metadata

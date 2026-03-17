@@ -82,7 +82,7 @@ export class OrderAPI {
 
       // Use postRaw to handle the actual API response format: { status: "success", orders: [], metadata?: {} }
       const responseData = await this.http.postRaw<CustomerOrdersApiResponse>(
-        `orders/${this.apiKey}/customer_order`,
+        `orders/${this.apiKey}/customer_order_basic`,
         body
       );
 
