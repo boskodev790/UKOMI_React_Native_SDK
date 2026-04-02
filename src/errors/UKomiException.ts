@@ -35,6 +35,25 @@ export class UKomiApiException extends UKomiException {
 }
 
 /**
+ * Thrown when POST /v1/{api_key}/review_submit returns status "field_error".
+ * Inspect {@link fieldErrors} for per-field messages.
+ */
+export class UKomiFieldValidationException extends UKomiApiException {
+  public readonly fieldErrors: Record<string, string>;
+
+  constructor(fieldErrors: Record<string, string>, message?: string) {
+    const fromFields = Object.entries(fieldErrors)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('; ');
+    const combined =
+      message ?? (fromFields.length > 0 ? fromFields : 'Validation failed');
+    super(422, combined);
+    this.name = 'UKomiFieldValidationException';
+    this.fieldErrors = fieldErrors;
+  }
+}
+
+/**
  * Exception thrown when authentication fails.
  * Typically occurs when invalid API credentials are provided.
  */

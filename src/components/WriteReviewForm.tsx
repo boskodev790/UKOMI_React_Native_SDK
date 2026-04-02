@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,12 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { UKomiSDK } from '../UKomiSDK';
-import { UKomiApiException, UKomiException } from '../errors/UKomiException';
+import {
+  UKomiApiException,
+  UKomiException,
+  UKomiFieldValidationException,
+} from '../errors/UKomiException';
+import type { ReviewFormFieldsData, ReviewSubmitV1Request } from '../types/ReviewModels';
 
 interface InternalQuestion {
   id: string;
@@ -29,6 +34,11 @@ export interface WriteReviewFormProps {
   sdk: UKomiSDK;
   /** The product ID to submit review for */
   productId: string;
+  /**
+   * Optional order id (e.g. from order history). Sent to `review_form_fields` and `review_submit`.
+   * When a pending review request exists for this order, the API omits email/name fields and does not require email.
+   */
+  orderId?: string;
   /** Callback when form should be closed (e.g., after successful submission) */
   onClose?: () => void;
   /** Optional: Callback when review is successfully submitted */
@@ -68,6 +78,7 @@ const starPath = 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63
 export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   sdk,
   productId,
+  orderId,
   onClose,
   onSubmitSuccess,
   colors: customColors,
@@ -131,8 +142,40 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
   const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [formFieldsData, setFormFieldsData] = useState<ReviewFormFieldsData | null>(null);
+  const [formMetaLoading, setFormMetaLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** When true, show and validate email (and name) — false when v1 API says email is not required (e.g. order + pending request). */
+  const requireReviewerContact =
+    formFieldsData?.form_config?.email_required !== false;
+
+  useEffect(() => {
+    let cancelled = false;
+    setFormMetaLoading(true);
+    (async () => {
+      try {
+        const data = await sdk.reviews().getReviewFormFields(productId, {
+          orderId: orderId || undefined,
+        });
+        if (!cancelled) {
+          setFormFieldsData(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setFormFieldsData(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setFormMetaLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sdk, productId, orderId]);
 
   // Render a single star
   const renderStar = (isFilled: boolean, starNumber: number, size: number = 24) => {
@@ -278,6 +321,9 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
 
 
   const handleSubmit = async () => {
+    if (formMetaLoading) {
+      return;
+    }
     // Validate required fields
     if (rating === 0) {
       setError('評価を選択してください');
@@ -291,16 +337,16 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       setError('本文を入力してください');
       return;
     }
-    if (!email.trim()) {
-      setError('メールアドレスを入力してください');
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('有効なメールアドレスを入力してください');
-      return;
+    if (requireReviewerContact) {
+      if (!email.trim()) {
+        setError('メールアドレスを入力してください');
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('有効なメールアドレスを入力してください');
+        return;
+      }
     }
 
     // Validate required built-in questions
@@ -318,15 +364,25 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
     setLoading(true);
 
     try {
-      await sdk.reviews().submitReview(productId, {
-        rating,
-        subject,
-        content,
-        email,
-        name: name || undefined,
-        nickname: nickname || undefined,
-        customAnswers: Object.keys(customAnswers).length > 0 ? customAnswers : undefined,
-      });
+      const payload: ReviewSubmitV1Request = {
+        product_id: productId,
+        score: rating,
+        review: content.trim(),
+        title: subject.trim(),
+        nickname: nickname.trim() || undefined,
+        custom_form_ans:
+          Object.keys(customAnswers).length > 0 ? { ...customAnswers } : undefined,
+      };
+      if (orderId) {
+        payload.order_id = orderId;
+      }
+      if (requireReviewerContact) {
+        payload.email = email.trim();
+        if (name.trim()) {
+          payload.name = name.trim();
+        }
+      }
+      await sdk.reviews().submitReviewV1(payload);
       
       // Reset form
       setRating(0);
@@ -345,7 +401,9 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       }
     } catch (err) {
       let errorMessage = 'レビューの投稿に失敗しました';
-      if (err instanceof UKomiApiException) {
+      if (err instanceof UKomiFieldValidationException) {
+        errorMessage = err.message || errorMessage;
+      } else if (err instanceof UKomiApiException) {
         errorMessage = err.message || errorMessage;
       } else if (err instanceof UKomiException) {
         errorMessage = err.message || errorMessage;
@@ -358,8 +416,19 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
     }
   };
 
+  const submitLabel =
+    formFieldsData?.form_config?.submit_button_text?.trim() || '投稿する';
+
   return (
     <View style={[styles.formAdvanced, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      {formMetaLoading ? (
+        <View style={styles.formMetaLoading}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.formMetaLoadingText, { color: colors.textSecondary }]}>
+            Loading form...
+          </Text>
+        </View>
+      ) : null}
       {/* Rating Field */}
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
@@ -408,41 +477,45 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
         />
       </View>
 
-      {/* Name Field */}
-      <View style={styles.formGroup}>
-        <View style={styles.labelRow}>
-          <Text style={[styles.label, { color: colors.text }]}>お名前</Text>
-          <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
-            <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+      {requireReviewerContact ? (
+        <>
+          {/* Name Field */}
+          <View style={styles.formGroup}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.label, { color: colors.text }]}>お名前</Text>
+              <View style={[styles.optionalBadge, { backgroundColor: colors.surface, marginLeft: 8 }]}>
+                <Text style={[styles.optionalText, { color: colors.textSecondary }]}>任意</Text>
+              </View>
+            </View>
+            <TextInput
+              style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="お名前を入力してください"
+              placeholderTextColor={colors.textSecondary}
+            />
           </View>
-        </View>
-        <TextInput
-          style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
-          value={name}
-          onChangeText={setName}
-          placeholder="お名前を入力してください"
-          placeholderTextColor={colors.textSecondary}
-        />
-      </View>
 
-      {/* Email Field */}
-      <View style={styles.formGroup}>
-        <View style={styles.labelRow}>
-          <Text style={[styles.label, { color: colors.text }]}>メールアドレス</Text>
-          <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
-            <Text style={styles.requiredText}>必須</Text>
+          {/* Email Field */}
+          <View style={styles.formGroup}>
+            <View style={styles.labelRow}>
+              <Text style={[styles.label, { color: colors.text }]}>メールアドレス</Text>
+              <View style={[styles.requiredBadge, { backgroundColor: colors.primary, marginLeft: 8 }]}>
+                <Text style={styles.requiredText}>必須</Text>
+              </View>
+            </View>
+            <TextInput
+              style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="メールアドレスを入力してください"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
           </View>
-        </View>
-        <TextInput
-          style={[styles.textInput, { borderColor: colors.border, color: colors.text }]}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="メールアドレスを入力してください"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
+        </>
+      ) : null}
 
       {/* Nickname Field */}
       <View style={styles.formGroup}>
@@ -482,12 +555,12 @@ export const WriteReviewForm: React.FC<WriteReviewFormProps> = ({
       <TouchableOpacity
         style={[styles.submitButton, { backgroundColor: colors.primary }]}
         onPress={handleSubmit}
-        disabled={loading}
+        disabled={loading || formMetaLoading}
       >
-        {loading ? (
+        {loading || formMetaLoading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.submitButtonText}>投稿する</Text>
+          <Text style={styles.submitButtonText}>{submitLabel}</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -501,6 +574,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: 20, // 1.25rem = 20px
+  },
+  formMetaLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  formMetaLoadingText: {
+    fontSize: 14,
+    marginLeft: 8,
   },
   formGroup: {
     marginBottom: 20,

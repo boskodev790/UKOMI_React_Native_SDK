@@ -18,6 +18,7 @@ export { QuestionAPI } from './api/QuestionAPI';
 export {
   UKomiException,
   UKomiApiException,
+  UKomiFieldValidationException,
   UKomiAuthException,
   UKomiNetworkException,
 } from './errors/UKomiException';

@@ -13,6 +13,8 @@ Official React Native SDK for integrating with the U-KOMI API. This SDK provides
 - [Quick Start](#quick-start)
 - [SDK Structure](#sdk-structure)
 - [API Modules](#api-modules)
+- [V1 review form and submit](#v1-review-form-and-submit)
+- [UI components](#ui-components)
 - [Error Handling](#error-handling)
 - [TypeScript Support](#typescript-support)
 - [Requirements](#requirements)
@@ -21,7 +23,7 @@ Official React Native SDK for integrating with the U-KOMI API. This SDK provides
 
 ## ✨ Features
 
-- ✅ **Complete API Coverage** - Authentication, Account, Reviews, Products, Orders, Groups, Q&A (30+ endpoints)
+- ✅ **Complete API Coverage** - Authentication, Account, Reviews (including **v1** `review_form_fields` / `review_submit`), Products, Orders, Groups, Q&A (30+ endpoints)
 - ✅ **Type-Safe TypeScript API** - Full TypeScript support with interfaces and type safety
 - ✅ **Async/Await Support** - All operations use async/await pattern
 - ✅ **Built-in Error Handling** - Comprehensive exception hierarchy for different error types
@@ -204,8 +206,9 @@ React_Native_SDK/
 │   │   ├── GroupModels.ts
 │   │   ├── QuestionModels.ts
 │   │   └── ApiResponse.ts
-│   └── utils/                    # Utilities
-│       └── HttpClient.ts        # HTTP client wrapper
+│   ├── utils/                    # Utilities
+│   │   └── HttpClient.ts        # HTTP client wrapper
+│   └── components/               # Optional RN UI (WriteReviewForm, OrderList, …)
 ├── dist/                         # Compiled JavaScript (generated)
 ├── package.json                  # Package configuration
 ├── tsconfig.json                 # TypeScript configuration
@@ -323,6 +326,11 @@ Comprehensive review management with filtering, pagination, and analytics.
   - Returns: `Record<string, string>` (token data)
   - Throws: `UKomiApiException`, `UKomiException`
 
+- **`submitReview(productId, reviewData)`** - Legacy review submission (`reviews/{apiKey}/post`)
+  - Prefer **`submitReviewV1`** for new integrations.
+
+See also [V1 review form and submit](#v1-review-form-and-submit) below.
+
 ### Product API
 
 Product management and product-related review data.
@@ -414,6 +422,104 @@ Question and Answer management for products.
   - Returns: `QuestionCount` (contains count)
   - Throws: `UKomiApiException`, `UKomiException`
 
+## V1 review form and submit
+
+These endpoints follow the pattern `POST /v1/{api_key}/...` with JSON bodies. They are exposed on `sdk.reviews()`.
+
+### `getReviewFormFields(productId, options?)`
+
+Loads product info, `form_config`, dynamic `fields`, and `labels` for building a review UI.
+
+| Argument | Description |
+|----------|-------------|
+| `productId` | Product identifier (sent as `product_id`). |
+| `options?.orderId` | Optional. Sent as `order_id`. When a **pending review request** exists for that order, the API sets `form_config.email_required` to `false` and omits `email` / `name` from `fields` (customer data comes from the order). |
+
+```typescript
+import type { ReviewFormFieldsData } from '@ukomi/react-native-sdk';
+
+const data: ReviewFormFieldsData = await sdk.reviews().getReviewFormFields('PRODUCT_ID');
+
+const fromOrder = await sdk.reviews().getReviewFormFields('PRODUCT_ID', {
+  orderId: 'ORDER_ID',
+});
+
+// Useful flags / copy
+const needEmail = data.form_config?.email_required !== false;
+const submitLabel = data.form_config?.submit_button_text;
+```
+
+### `submitReviewV1(params)`
+
+Submits a review; the API sends a verification email when appropriate. Use types **`ReviewSubmitV1Request`** and the success payload shape from **`ReviewSubmitV1SuccessResponse`** (see `ReviewModels`).
+
+| Field | Notes |
+|-------|--------|
+| `product_id`, `score`, `review` | Required. |
+| `title` | Required when enabled in account settings (see form fields). |
+| `email`, `name` | Omit when `order_id` is set and a pending review request exists; server uses the order. |
+| `order_id` | Optional. Same semantics as `review_form_fields`. Cannot be used with `group` in a meaningful way on the server; `order_id` wins if both are sent. |
+| `group` | Optional. `"true"` for group mode (ignored if `order_id` is provided). |
+| `nickname` | Optional. |
+| `custom_form_ans`, `custom_form_ans_other` | Optional custom question maps. |
+
+```typescript
+// Standard flow
+await sdk.reviews().submitReviewV1({
+  product_id: 'PRODUCT_ID',
+  score: 5,
+  review: 'Great product!',
+  title: 'Love it',
+  email: 'user@example.com',
+  name: 'Jane',
+});
+
+// Order flow (no email/name when API has marked them optional via review_form_fields)
+await sdk.reviews().submitReviewV1({
+  product_id: 'PRODUCT_ID',
+  order_id: 'ORDER_ID',
+  score: 5,
+  review: 'Great product!',
+  title: 'Love it',
+});
+```
+
+**Responses**
+
+- Success: `status: "success"` — method returns `data` (`verification_email_sent`, `message`, etc.).
+- Validation: `status: "field_error"` — SDK throws **`UKomiFieldValidationException`** with **`fieldErrors`**: `Record<string, string>`.
+- Error: `status: "error"` — throws **`UKomiApiException`** (e.g. invalid API key).
+
+## UI components
+
+Peer dependency: **`react-native-svg`** (for star rating / forms).
+
+### `OrderList`
+
+Shows customer orders and opens **`WriteReviewForm`** with both **`productId`** and **`orderId`** so the v1 APIs can hide email/name when the backend allows it.
+
+### `WriteReviewForm`
+
+| Prop | Description |
+|------|-------------|
+| `sdk` | `UKomiSDK` instance |
+| `productId` | Product id |
+| `orderId` | Optional; pass when reviewing from an order (same as v1 `order_id`) |
+| `onClose`, `onSubmitSuccess`, `colors` | Optional UX hooks / theming |
+
+On mount it calls **`getReviewFormFields`** (with `orderId` when set), then submits with **`submitReviewV1`**. Email and name fields are shown only when **`form_config.email_required`** is not `false`.
+
+```tsx
+import { WriteReviewForm } from '@ukomi/react-native-sdk';
+
+<WriteReviewForm
+  sdk={sdk}
+  productId="PRODUCT_ID"
+  orderId="ORDER_ID"
+  onClose={() => {}}
+/>
+```
+
 ## ⚠️ Error Handling
 
 The SDK provides a comprehensive error hierarchy:
@@ -422,6 +528,7 @@ The SDK provides a comprehensive error hierarchy:
 import {
   UKomiException,
   UKomiApiException,
+  UKomiFieldValidationException,
   UKomiAuthException,
   UKomiNetworkException,
 } from '@ukomi/react-native-sdk';
@@ -432,6 +539,9 @@ try {
   if (error instanceof UKomiAuthException) {
     // Handle authentication errors
     console.error('Auth error:', error.message);
+  } else if (error instanceof UKomiFieldValidationException) {
+    // review_submit returned status "field_error"
+    console.error('Validation:', error.fieldErrors);
   } else if (error instanceof UKomiApiException) {
     // Handle API errors (includes status code)
     console.error('API error:', error.code, error.message);
@@ -449,6 +559,7 @@ try {
 
 - **UKomiException** - Base exception for all SDK errors
 - **UKomiApiException** - API error with status code (`error.code` contains HTTP status)
+- **UKomiFieldValidationException** - Subclass of `UKomiApiException` for v1 `review_submit` validation (`status: "field_error"`). Use **`error.fieldErrors`** (`Record<string, string>`) for per-field messages.
 - **UKomiAuthException** - Authentication errors (invalid credentials, expired token)
 - **UKomiNetworkException** - Network connectivity errors
 
@@ -471,12 +582,14 @@ All TypeScript types are exported from the main package:
 
 - `Account`, `AccountBasic`
 - `Review`, `ReviewResponse`, `ReviewSummary`, `ReviewWithOrders`
+- `ReviewFormFieldsData`, `ReviewFormFieldsRequest`, `ReviewFormFieldsResponse`, `ReviewSubmitV1Request`, `ReviewSubmitV1SuccessResponse`, `ReviewSubmitV1FieldErrorResponse`, `ReviewSubmitV1ErrorResponse`
 - `Product`, `ProductReviewSummary`, `ProductReviewMeta`
 - `Order`, `OrdersResponse`
 - `GroupProduct`
 - `Question`, `QuestionsResponse`, `QuestionCount`
 - `UKomiSDKConfig`
-- All error classes
+- All error classes (including `UKomiFieldValidationException`)
+- `WriteReviewForm`, `WriteReviewFormProps`, `OrderList`, `OrderListProps`, `StarRating`, `ProductReviewList`, `ProductQAList`, `AskQuestionForm` (components)
 
 ## 📋 Requirements
 
@@ -492,6 +605,7 @@ All TypeScript types are exported from the main package:
 
 - `react` >= 16.8.0
 - `react-native` >= 0.60.0
+- `react-native-svg` >= 15.15.1 (required if you use bundled UI components such as `WriteReviewForm` or `OrderList`)
 
 ## 🔐 Authentication
 

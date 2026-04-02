@@ -1,5 +1,9 @@
 import { HttpClient } from '../utils/HttpClient';
-import { UKomiApiException, UKomiException } from '../errors/UKomiException';
+import {
+  UKomiApiException,
+  UKomiException,
+  UKomiFieldValidationException,
+} from '../errors/UKomiException';
 import {
   ReviewResponse,
   Review,
@@ -13,6 +17,7 @@ import {
   FilteredReviewSummaryRequest,
   ReviewWithOrdersRequestBody,
   ReviewFormFieldsData,
+  ReviewFormFieldsRequest,
   ReviewFormFieldsResponse,
   ReviewSubmitV1Request,
   ReviewSubmitV1SuccessResponse,
@@ -445,6 +450,9 @@ export class ReviewAPI {
    * needed to render a review form.
    *
    * @param productId - Product identifier
+   * @param options.orderId - Optional order id. When provided with product_id, if a pending
+   *   review request exists for this order, `form_config.email_required` will be false and
+   *   `email` / `name` entries are omitted from `fields` (server uses order customer data).
    * @returns Promise resolving to form fields data (product, form_config, fields, labels)
    * @throws {UKomiApiException} When the API returns an error
    * @throws {UKomiException} When a network error occurs
@@ -452,14 +460,24 @@ export class ReviewAPI {
    * @example
    * ```typescript
    * const formData = await sdk.reviews().getReviewFormFields('product-123');
+   * const fromOrder = await sdk.reviews().getReviewFormFields('product-123', {
+   *   orderId: 'order-456',
+   * });
    * console.log(formData.form_config?.submit_button_text);
    * ```
    */
-  async getReviewFormFields(productId: string): Promise<ReviewFormFieldsData> {
+  async getReviewFormFields(
+    productId: string,
+    options?: { orderId?: string }
+  ): Promise<ReviewFormFieldsData> {
     try {
+      const body: ReviewFormFieldsRequest = { product_id: productId };
+      if (options?.orderId) {
+        body.order_id = options.orderId;
+      }
       const response = await this.http.postRaw<ReviewFormFieldsResponse>(
         `v1/${this.apiKey}/review_form_fields`,
-        { product_id: productId }
+        body
       );
       if (response.status === 'success' && response.data) {
         return response.data;
@@ -480,13 +498,11 @@ export class ReviewAPI {
    * (V1 API) Validates review data, saves a temp review, and sends a verification email
    * to the reviewer.
    *
-   * @param params - Submit review params (product_id, score, review, email, etc.)
+   * @param params - Submit review params (product_id, score, review, email, order_id, etc.)
    * @returns Promise resolving to success data (verification_email_sent, message)
-   * @throws {UKomiApiException} On API error (e.g. invalid API key)
+   * @throws {UKomiFieldValidationException} When status is "field_error" (see {@link UKomiFieldValidationException.fieldErrors})
+   * @throws {UKomiApiException} On other API errors (e.g. invalid API key)
    * @throws {UKomiException} When a network error occurs
-   *
-   * For validation/field errors, check the thrown error; the API returns status "field_error"
-   * with an `errors` object (field name -> error message).
    *
    * @example
    * ```typescript
@@ -498,7 +514,15 @@ export class ReviewAPI {
    *   email: 'user@example.com',
    *   name: 'John',
    * });
-   * console.log(result.data?.message);
+   * // Order flow (no email/name when pending review request exists):
+   * await sdk.reviews().submitReviewV1({
+   *   product_id: 'product-123',
+   *   order_id: 'order-456',
+   *   score: 5,
+   *   review: 'Great!',
+   *   title: 'Love it',
+   * });
+   * console.log(result?.message);
    * ```
    */
   async submitReviewV1(
@@ -514,8 +538,7 @@ export class ReviewAPI {
       }
       if (response.status === 'field_error') {
         const err = response as ReviewSubmitV1FieldErrorResponse;
-        const msg = err.errors ? Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join('; ') : 'Validation failed';
-        throw new UKomiApiException(422, msg);
+        throw new UKomiFieldValidationException(err.errors ?? {});
       }
       const errResp = response as ReviewSubmitV1ErrorResponse;
       throw new UKomiApiException(

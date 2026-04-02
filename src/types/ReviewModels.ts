@@ -157,6 +157,8 @@ export interface ReviewFormFieldsProduct {
 /** Form config returned by Get Review Form Fields (v1) */
 export interface ReviewFormFieldsConfig {
   language?: string;
+  /** When false (e.g. order flow with pending review request), email is not required and name/email fields are omitted from `fields`. */
+  email_required?: boolean;
   submission_text?: string;
   nickname_text?: string;
   picture_upload_text?: string;
@@ -188,15 +190,31 @@ export interface ReviewFormFieldsResponse {
   data?: ReviewFormFieldsData;
 }
 
+/** JSON body for POST /v1/{api_key}/review_form_fields */
+export interface ReviewFormFieldsRequest {
+  product_id: string;
+  /** When set with product_id, if a pending review request exists for this order, email/name fields are omitted and email is not required. */
+  order_id?: string;
+}
+
 /** Request body for Submit Review (v1) */
 export interface ReviewSubmitV1Request {
   product_id: string;
   score: number;
   review: string;
+  /** Required when enabled in account settings (see review_form_fields). */
   title?: string;
+  /** Defaults server-side when omitted. Not required when order_id + pending review request. */
   name?: string;
-  email: string;
+  /** Required unless order_id is provided and a pending review request exists for that order. */
+  email?: string;
   nickname?: string;
+  /**
+   * When provided with product_id, if a pending review request exists, email and name are taken from the order.
+   * Cannot be used with group; order_id takes precedence if both are sent.
+   */
+  order_id?: string;
+  /** `"true"` for group mode (ignored if order_id is provided). */
   group?: string;
   custom_form_ans?: Record<string, string | string[]>;
   custom_form_ans_other?: Record<string, string>;

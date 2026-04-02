@@ -97,6 +97,7 @@ export const OrderList: React.FC<OrderListProps> = ({
   const [selectedProduct, setSelectedProduct] = useState<{
     productId: string;
     token: string | null;
+    orderId: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,11 +155,12 @@ export const OrderList: React.FC<OrderListProps> = ({
     }
   };
 
-  const handleWriteReview = (product: CustomerOrderProduct) => {
+  const handleWriteReview = (product: CustomerOrderProduct, order: CustomerOrder) => {
     if (product.token) {
       setSelectedProduct({
         productId: product.product_id,
         token: product.token,
+        orderId: order.order_id,
       });
     }
   };
@@ -303,7 +305,7 @@ export const OrderList: React.FC<OrderListProps> = ({
                   opacity: product.token ? 1 : 0.5,
                 },
               ]}
-              onPress={() => product.token && handleWriteReview(product)}
+              onPress={() => product.token && handleWriteReview(product, order)}
               disabled={!product.token}
             >
               <Text
@@ -379,12 +381,13 @@ export const OrderList: React.FC<OrderListProps> = ({
           </Text>
         </TouchableOpacity>
         <WriteReviewForm
+          {...writeReviewFormProps}
           sdk={sdk}
           productId={selectedProduct.productId}
+          orderId={selectedProduct.orderId}
           onClose={handleBackToOrderHistory}
           onSubmitSuccess={handleBackToOrderHistory}
           colors={colors}
-          {...writeReviewFormProps}
         />
       </View>
     );
